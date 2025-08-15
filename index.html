@@ -62,21 +62,50 @@
         }
       }
     </script>
-  <script type="importmap">
+    
+    <!-- ES Module Shims for importmap support -->
+    <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js" crossorigin="anonymous"></script>
+
+    <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.1.1",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+    "react-dom/client": "https://esm.sh/react-dom@^19.1.1/client",
+    "@google/genai": "https://esm.sh/@google/genai@^1.13.0",
     "react/": "https://esm.sh/react@^19.1.1/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.13.0"
+    "react-dom/": "https://esm.sh/react-dom@^19.1.1/"
   }
 }
 </script>
+
+    <!-- SystemJS for client-side module loading and Babel for TSX transpilation -->
+    <script src="https://unpkg.com/systemjs@6.15.1/dist/s.min.js"></script>
+    <script src="https://unpkg.com/systemjs-plugin-babel@latest/plugin-babel.js"></script>
+    <script src="https://unpkg.com/systemjs-plugin-babel@latest/systemjs-babel-browser.js"></script>
+
+    <script type="systemjs-config">
+    {
+        "map": {
+            "plugin-babel": "https://unpkg.com/systemjs-plugin-babel@latest/plugin-babel.js",
+            "systemjs-babel-build": "https://unpkg.com/systemjs-plugin-babel@latest/systemjs-babel-browser.js"
+        },
+        "meta": {
+            "./*.tsx": { "loader": "plugin-babel" },
+            "./*.ts": { "loader": "plugin-babel" },
+            "./components/*.tsx": { "loader": "plugin-babel" },
+            "./services/*.ts": { "loader": "plugin-babel" }
+        },
+        "transpiler": "plugin-babel"
+    }
+    </script>
 <link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+    <!-- Load the app entry point via SystemJS, which will transpile it -->
+    <script type="systemjs-import">
+        System.import('./index.tsx');
+    </script>
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>
