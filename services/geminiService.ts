@@ -1,13 +1,24 @@
 import { GoogleGenAI, GenerateContentResponse, Content } from "@google/genai";
 import { Character, DiaryEntry, Message, Role, StoryChoice, Interruption } from '../types';
 
-// Ensure the API key is available in the environment variables
-const apiKey = process.env.API_KEY;
-if (!apiKey) {
-  throw new Error("API_KEY environment variable is not set.");
+// The API key is expected to be set in the environment variables.
+// In a static deployment environment like GitHub Pages, this value might not be available,
+// which would cause the application to crash.
+// We handle this case gracefully by checking for the key and allowing the app to run in a degraded state.
+let ai: GoogleGenAI | null = null;
+
+// Using a try-catch block to prevent a crash if 'process' is not defined in the browser.
+try {
+  const apiKey = process.env.API_KEY;
+  if (apiKey) {
+    ai = new GoogleGenAI({ apiKey });
+  } else {
+    console.warn("API_KEY environment variable not found. AI functionality will be disabled.");
+  }
+} catch (e) {
+  console.error("Failed to access process.env. This is expected on a static hosting platform. AI functionality will be disabled.", e);
 }
 
-const ai = new GoogleGenAI({ apiKey });
 
 // Maps our internal Role enum to the roles expected by the Gemini API.
 const roleToGeminiRole = (role: Role): 'user' | 'model' => {
@@ -19,6 +30,14 @@ export const getCharacterResponse = async (
   systemInstruction: string,
   history: Message[]
 ): Promise<Message> => {
+    // If the AI client failed to initialize, return a user-friendly error message.
+    if (!ai) {
+      return {
+          role: Role.SYSTEM,
+          content: "خطأ في الإعداد: مفتاح API للذكاء الاصطناعي غير متوفر. تأكد من أن متغير البيئة API_KEY تم إعداده بشكل صحيح في بيئة النشر.",
+      };
+    }
+    
     // Convert our app's message history into the format Gemini API expects.
     // We filter out system messages as they are not part of the conversation flow.
     const contents: Content[] = history
