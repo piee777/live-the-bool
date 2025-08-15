@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Book, Character, Message, Role, DiaryEntry } from './types';
 import { LibraryScreen } from './components/BookDetails';
 import { ChatInterface } from './components/ChatInterface';
-import { getCharacterResponse } from './services/geminiService';
+import { getCharacterResponse, initializeAi } from './services/geminiService';
 import { BottomNavBar } from './components/BottomNavBar';
 import { Achievements } from './components/Achievements';
 import { StoryView } from './components/StoryView';
 import { TopHeader } from './components/TopHeader';
 import { JournalView } from './components/JournalView';
+import { ApiKeyModal } from './components/ApiKeyModal';
 
 const STORY_PROMPT_TEMPLATE = (characterPersona: string) => `أنت سيد السرد لتطبيق قصص تفاعلي بالكامل يعتمد على النص. هدفك الأساسي هو خلق تجربة سردية متفرعة وغامرة للغاية مبنية على رواية شهيرة. يجب أن تعمل بالكامل داخل عالم القصة وسياقها.
 
@@ -218,6 +219,8 @@ const MOCK_BOOKS: Book[] = [MOCK_BOOK_DUNE, MOCK_BOOK_THE_STRANGER, MOCK_BOOK_KH
 type View = 'library' | 'chat' | 'story' | 'achievements' | 'journal';
 
 function App() {
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState<boolean>(false);
   const [books] = useState<Book[]>(MOCK_BOOKS);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
@@ -238,6 +241,16 @@ function App() {
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
 
   useEffect(() => {
+    const storedKey = localStorage.getItem('gemini_api_key');
+    if (storedKey) {
+      setApiKey(storedKey);
+      initializeAi(storedKey);
+    } else {
+      setIsApiKeyModalOpen(true);
+    }
+  }, []);
+
+  useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove(theme === 'light' ? 'dark' : 'light');
     root.classList.add(theme);
@@ -245,6 +258,15 @@ function App() {
 
   const handleThemeToggle = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
+  };
+  
+  const handleSaveApiKey = (key: string) => {
+    if (key) {
+      localStorage.setItem('gemini_api_key', key);
+      setApiKey(key);
+      initializeAi(key);
+      setIsApiKeyModalOpen(false);
+    }
   };
 
   const handleBookSelect = (book: Book) => {
@@ -300,6 +322,7 @@ function App() {
     text: string,
     options: { characterOverride?: Character; isStoryMode?: boolean } = {}
   ) => {
+    if (isApiKeyModalOpen) return; // Do not send messages if API key is not set
     const { characterOverride, isStoryMode = false } = options;
     const characterForAPI = characterOverride || selectedCharacter;
     if (!characterForAPI) return;
@@ -421,6 +444,8 @@ function App() {
 
   return (
     <main className="h-screen w-screen bg-brand-bg-dark text-brand-text-light flex flex-col overflow-hidden transition-colors duration-500">
+      {isApiKeyModalOpen && <ApiKeyModal onSave={handleSaveApiKey} />}
+      
       <TopHeader theme={theme} onThemeToggle={handleThemeToggle} globalProgress={globalProgress} />
       
       <div className="flex-1 overflow-y-auto relative">

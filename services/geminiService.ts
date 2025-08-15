@@ -1,24 +1,32 @@
 import { GoogleGenAI, GenerateContentResponse, Content } from "@google/genai";
 import { Character, DiaryEntry, Message, Role, StoryChoice, Interruption } from '../types';
 
-// The API key is expected to be set in the environment variables.
-// In a static deployment environment like GitHub Pages, this value might not be available,
-// which would cause the application to crash.
-// We handle this case gracefully by checking for the key and allowing the app to run in a degraded state.
 let ai: GoogleGenAI | null = null;
 
-// Using a try-catch block to prevent a crash if 'process' is not defined in the browser.
-try {
-  const apiKey = process.env.API_KEY;
-  if (apiKey) {
-    ai = new GoogleGenAI({ apiKey });
-  } else {
-    console.warn("API_KEY environment variable not found. AI functionality will be disabled.");
+/**
+ * Initializes the GoogleGenAI client with the provided API key.
+ * This must be called before any AI functionality is used.
+ * @param apiKey - The Google Gemini API key.
+ */
+export const initializeAi = (apiKey: string) => {
+  if (apiKey && !ai) { // Initialize only if a key is provided and not already initialized
+    try {
+      ai = new GoogleGenAI({ apiKey });
+      console.log("Gemini AI initialized successfully.");
+    } catch(error) {
+      console.error("Failed to initialize Gemini AI:", error);
+      ai = null; // Ensure ai is null if initialization fails
+    }
   }
-} catch (e) {
-  console.error("Failed to access process.env. This is expected on a static hosting platform. AI functionality will be disabled.", e);
-}
+};
 
+/**
+ * Checks if the AI client has been successfully initialized.
+ * @returns boolean - True if the AI is ready, false otherwise.
+ */
+export const isAiInitialized = (): boolean => {
+  return ai !== null;
+};
 
 // Maps our internal Role enum to the roles expected by the Gemini API.
 const roleToGeminiRole = (role: Role): 'user' | 'model' => {
@@ -31,10 +39,10 @@ export const getCharacterResponse = async (
   history: Message[]
 ): Promise<Message> => {
     // If the AI client failed to initialize, return a user-friendly error message.
-    if (!ai) {
+    if (!isAiInitialized()) {
       return {
           role: Role.SYSTEM,
-          content: "خطأ في الإعداد: مفتاح API للذكاء الاصطناعي غير متوفر. تأكد من أن متغير البيئة API_KEY تم إعداده بشكل صحيح في بيئة النشر.",
+          content: "خطأ في الإعداد: مفتاح API للذكاء الاصطناعي غير متوفر. يرجى إعداد المفتاح لتفعيل ميزات الذكاء الاصطناعي.",
       };
     }
     
@@ -48,7 +56,7 @@ export const getCharacterResponse = async (
         }));
 
     try {
-        const response: GenerateContentResponse = await ai.models.generateContent({
+        const response: GenerateContentResponse = await ai!.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: contents,
             config: {
@@ -184,7 +192,7 @@ export const getCharacterResponse = async (
         console.error("Error getting response from Gemini API:", error);
         return {
             role: Role.SYSTEM,
-            content: "عذرًا، حدث خطأ أثناء محاولة التواصل مع الشخصية. يرجى المحاولة مرة أخرى.",
+            content: "عذرًا، حدث خطأ أثناء محاولة التواصل مع الشخصية. قد يكون مفتاح API غير صالح. يرجى المحاولة مرة أخرى.",
         };
     }
 };
