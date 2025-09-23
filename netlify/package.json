@@ -1,0 +1,9 @@
+{
+  "name": "storify-netlify-functions",
+  "version": "1.0.0",
+  "description": "Dependencies for Storify Netlify Functions",
+  "type": "module",
+  "dependencies": {
+    "@google/genai": "^1.13.0"
+  }
+}

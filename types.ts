@@ -1,3 +1,4 @@
+
 export enum Role {
   USER = 'user',
   CHARACTER = 'character',
@@ -52,6 +53,7 @@ export interface Book {
 
 export interface UserGeneratedBook {
   id: string;
+  user_id?: string; // Kept for potential future use, but not primary for local
   title: string;
   author: string;
   summary: string; // User's short description
@@ -67,7 +69,16 @@ export interface TimelineEvent {
   content: string;
 }
 
-// FIX: Add missing types for UserStoryView component
+export interface StoryState {
+    messages: Message[];
+    storyProgress: number;
+    storyDiary: DiaryEntry[];
+    storyNotes: string;
+    inventory: string[];
+    timeline: TimelineEvent[];
+    savedQuotes: string[];
+}
+
 export interface UserStoryChoice {
   text: string;
   destinationChapterId: string;
@@ -81,4 +92,12 @@ export interface UserChapter {
 
 export interface UserBook {
   chapters: UserChapter[];
+}
+
+export interface User {
+  id: string;
+  name: string;
+  avatar_url?: string;
+  unlocked_achievements?: string[];
+  global_progress?: number;
 }

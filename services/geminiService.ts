@@ -1,72 +1,30 @@
-import { GoogleGenAI, GenerateContentResponse, Content } from "@google/genai";
-import { Character, DiaryEntry, Message, Role, StoryChoice, Interruption } from '../types';
-
-let ai: GoogleGenAI | null = null;
-let initializationError: string | null = null;
-
-// Self-initialize on module load
-try {
-  // Safely access the API key and ensure it exists before initializing.
-  const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
-  if (!apiKey) {
-    throw new Error("API_KEY is not defined in the environment.");
-  }
-  // FIX: Pass apiKey as a named parameter.
-  ai = new GoogleGenAI({ apiKey });
-} catch (error) {
-  console.error("Gemini AI initialization failed:", error);
-  // This message will be shown to the user in the chat interface.
-  initializationError = "خطأ في الإعداد: مفتاح API للذكاء الاصطناعي غير متوفر أو غير صالح. لا يمكن استخدام ميزات الذكاء الاصطناعي.";
-  ai = null;
-}
-
-
-// Maps our internal Role enum to the roles expected by the Gemini API.
-const roleToGeminiRole = (role: Role): 'user' | 'model' => {
-    // Both CHARACTER and NARRATOR messages are from the 'model'
-    return role === Role.USER ? 'user' : 'model';
-}
+import { Message, Role, StoryChoice, DiaryEntry, Interruption } from '../types';
 
 export const getCharacterResponse = async (
   systemInstruction: string,
   history: Message[]
 ): Promise<Message> => {
-    // If the AI client failed to initialize, return the stored error message.
-    if (!ai) {
-      return {
-          role: Role.SYSTEM,
-          content: initializationError || "خطأ غير معروف في تهيئة الذكاء الاصطناعي.",
-      };
-    }
-    
-    // We filter out system messages as they are not part of the conversation flow.
-    // We also slice the history to the last 10 messages to avoid an overly long context,
-    // which can cause the model to fail after many interactions.
-    const relevantHistory = history
-        .filter(msg => msg.role === Role.USER || msg.role === Role.CHARACTER || msg.role === Role.NARRATOR)
-        .slice(-10);
-
-    const contents: Content[] = relevantHistory.map(msg => ({
-        role: roleToGeminiRole(msg.role),
-        parts: [{ text: msg.content }],
-    }));
-
     const maxRetries = 3;
     let delay = 2000; // Start with a 2-second delay
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-            const response: GenerateContentResponse = await ai!.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: contents,
-                config: {
-                    systemInstruction: systemInstruction,
-                    temperature: 0.85,
-                    topP: 0.9,
+            const apiResponse = await fetch('/.netlify/functions/get-ai-response', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
                 },
+                body: JSON.stringify({ systemInstruction, history }),
             });
 
-            let responseText = response.text.trim();
+            if (!apiResponse.ok) {
+                const errorData = await apiResponse.json().catch(() => ({}));
+                throw new Error(errorData.error || `Server responded with status ${apiResponse.status}`);
+            }
+
+            const data = await apiResponse.json();
+            let responseText = data.text.trim();
+            
             let interruption: Interruption | undefined = undefined;
 
             // Extract Interruption first, as it can appear in both modes

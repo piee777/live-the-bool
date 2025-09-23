@@ -1,26 +1,28 @@
+
 import React, { useState } from 'react';
 import { UserGeneratedBook } from '../types';
 
 interface CreateNovelProps {
-    onSave: (book: UserGeneratedBook) => void;
+    onSave: (bookData: Omit<UserGeneratedBook, 'id' | 'isUserGenerated' | 'user_id' | 'initialPrompt'> & { initialPrompt: string }) => void;
     onCancel: () => void;
+    userName: string;
 }
 
-const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
-
-export const AddNovel: React.FC<CreateNovelProps> = ({ onSave, onCancel }) => {
+export const AddNovel: React.FC<CreateNovelProps> = ({ onSave, onCancel, userName }) => {
     const [title, setTitle] = useState('');
-    const [author, setAuthor] = useState('');
+    const [author, setAuthor] = useState(userName);
     const [summary, setSummary] = useState('');
     const [details, setDetails] = useState('');
+    const [error, setError] = useState('');
 
     const handleSaveClick = () => {
         if (!title.trim() || !summary.trim()) {
-            alert("يرجى ملء حقلي العنوان والفكرة العامة على الأقل.");
+            setError("يرجى ملء حقلي العنوان والفكرة العامة على الأقل.");
             return;
         }
+        setError('');
 
-        const finalAuthor = author.trim() || 'مجهول';
+        const finalAuthor = author.trim() || userName;
 
         const initialPrompt = `
 عنوان الرواية: ${title}
@@ -30,16 +32,14 @@ ${details.trim() ? `شخصيات وأحداث أولية: ${details}` : ''}
 أسلوب الكتابة المطلوب: حافظ على أسلوب أدبي متماسك وجذاب، مع بناء الأحداث بشكل منطقي وتصاعدي.
 `;
 
-        const newBook: UserGeneratedBook = {
-            id: generateId(),
+        const newBookData = {
             title,
             author: finalAuthor,
             summary,
             initialPrompt: initialPrompt.trim(),
-            isUserGenerated: true,
         };
 
-        onSave(newBook);
+        onSave(newBookData);
     };
 
     return (
@@ -55,9 +55,10 @@ ${details.trim() ? `شخصيات وأحداث أولية: ${details}` : ''}
 
                 <div className="space-y-6 bg-brand-surface-dark p-6 rounded-xl border border-white/10">
                     <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="عنوان الرواية (مطلوب)" className="w-full p-3 bg-brand-bg-dark border-2 border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600 font-arabic text-lg"/>
-                    <input type="text" value={author} onChange={e => setAuthor(e.target.value)} placeholder="اسم الكاتب (اختياري، سيتم وضع 'مجهول' إذا ترك فارغًا)" className="w-full p-3 bg-brand-bg-dark border-2 border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600 font-arabic"/>
+                    <input type="text" value={author} onChange={e => setAuthor(e.target.value)} placeholder="اسم الكاتب" className="w-full p-3 bg-brand-bg-dark border-2 border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600 font-arabic"/>
                     <textarea value={summary} onChange={e => setSummary(e.target.value)} placeholder="وصف قصير أو فكرة عامة عن الرواية (مطلوب)" className="w-full p-3 bg-brand-bg-dark border-2 border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600 font-arabic" rows={4}/>
                     <textarea value={details} onChange={e => setDetails(e.target.value)} placeholder="شخصيات رئيسية وأحداث أولية (اختياري)" className="w-full p-3 bg-brand-bg-dark border-2 border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600 font-arabic" rows={4}/>
+                    {error && <p className="text-red-400 font-arabic text-sm">{error}</p>}
                 </div>
             </div>
         </div>

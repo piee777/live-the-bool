@@ -1,7 +1,6 @@
 
-
 import React, { useState, useEffect } from 'react';
-import { Book, Character, Message, Role, DiaryEntry, TimelineEvent, AnyBook, UserGeneratedBook } from './types';
+import { Book, Character, Message, Role, DiaryEntry, TimelineEvent, AnyBook, UserGeneratedBook, StoryState, User } from './types';
 import { LibraryScreen } from './components/BookDetails';
 import { ChatInterface } from './components/ChatInterface';
 import { getCharacterResponse } from './services/geminiService';
@@ -11,6 +10,11 @@ import { StoryView } from './components/StoryView';
 import { TopHeader } from './components/TopHeader';
 import { JournalView } from './components/JournalView';
 import { AddNovel } from './components/AddNovel';
+import { LoginScreen } from './components/LoginScreen';
+import * as supabaseService from './services/supabaseService';
+
+const LOCAL_STORAGE_KEY_SESSION_USER_ID = 'storify_session_user_id';
+
 
 const STORY_PROMPT_TEMPLATE = (characterPersona: string) => `أنت سيد السرد لتطبيق قصص تفاعلي بالكامل يعتمد على النص. هدفك هو إعادة إحياء الروايات الكلاسيكية بتجربة تفاعلية وغامرة.
 
@@ -256,20 +260,16 @@ const MOCK_BOOK_THE_STRANGER: Book = {
 const MOCK_BOOKS: Book[] = [MOCK_BOOK_DUNE, MOCK_BOOK_THE_STRANGER, MOCK_BOOK_KHOF, MOCK_BOOK_METAMORPHOSIS, MOCK_BOOK_CRIME_PUNISHMENT];
 type View = 'library' | 'chat' | 'story' | 'achievements' | 'journal' | 'createNovel';
 
-const USER_GENERATED_BOOKS_KEY = 'storify_user_generated_books';
-const STORY_STATES_KEY = 'storify_story_states';
+const FullScreenLoader: React.FC = () => (
+    <div className="h-screen w-screen bg-brand-bg-dark flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-t-amber-500 border-brand-surface-dark rounded-full animate-spin"></div>
+    </div>
+);
 
-interface StoryState {
-    messages: Message[];
-    storyProgress: number;
-    storyDiary: DiaryEntry[];
-    storyNotes: string;
-    inventory: string[];
-    timeline: TimelineEvent[];
-    savedQuotes: string[];
-}
 
 function App() {
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [mockBooks] = useState<Book[]>(MOCK_BOOKS);
   const [userGeneratedBooks, setUserGeneratedBooks] = useState<UserGeneratedBook[]>([]);
   const [storyStates, setStoryStates] = useState<Record<string, StoryState>>({});
@@ -299,55 +299,108 @@ function App() {
     root.classList.remove(theme === 'light' ? 'dark' : 'light');
     root.classList.add(theme);
   }, [theme]);
-
+  
+  // Check for local user session on initial load
   useEffect(() => {
-    try {
-      const storedBooks = localStorage.getItem(USER_GENERATED_BOOKS_KEY);
-      if (storedBooks) setUserGeneratedBooks(JSON.parse(storedBooks));
-      
-      const storedStates = localStorage.getItem(STORY_STATES_KEY);
-      if (storedStates) setStoryStates(JSON.parse(storedStates));
-// FIX: Added (error) to catch block to define the error variable.
-    } catch (error) {
-      console.error("Failed to load data from local storage:", error);
-    }
+    const checkSession = async () => {
+        try {
+            const userId = localStorage.getItem(LOCAL_STORAGE_KEY_SESSION_USER_ID);
+            if (userId && supabaseService.getIsSupabaseConfigured()) {
+                const data = await supabaseService.loadInitialData(userId);
+                if (data) {
+                    setCurrentUser(data.user);
+                    setStoryStates(data.storyStates);
+                    setUserGeneratedBooks(data.userBooks);
+                    setUnlockedAchievements(data.user.unlocked_achievements || []);
+                    setGlobalProgress(data.user.global_progress || 0);
+                } else {
+                    localStorage.removeItem(LOCAL_STORAGE_KEY_SESSION_USER_ID);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to check session", e);
+            localStorage.removeItem(LOCAL_STORAGE_KEY_SESSION_USER_ID);
+        } finally {
+            setSessionChecked(true);
+        }
+    };
+    checkSession();
   }, []);
 
-  // Auto-save user-generated books whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem(USER_GENERATED_BOOKS_KEY, JSON.stringify(userGeneratedBooks));
-// FIX: Added (error) to catch block to define the error variable.
-    } catch (error) {
-      console.error("Failed to save user books to local storage:", error);
+  const saveCurrentStoryState = async () => {
+    if (selectedBook && currentUser) {
+        const currentState: StoryState = {
+            messages,
+            storyProgress,
+            storyDiary,
+            storyNotes,
+            inventory,
+            timeline,
+            savedQuotes,
+        };
+        const updatedStates = { ...storyStates, [selectedBook.id]: currentState };
+        setStoryStates(updatedStates);
+        await supabaseService.upsertStoryState(currentUser.id, selectedBook.id, currentState);
     }
-  }, [userGeneratedBooks]);
+  };
+    
+  const handleLogin = async (name: string, avatarFile: File | null) => {
+    let user = await supabaseService.getUserByName(name);
 
-  // Auto-save the current story's state whenever it changes
-  useEffect(() => {
-    if (selectedBook) {
-      const currentState: StoryState = {
-        messages,
-        storyProgress,
-        storyDiary,
-        storyNotes,
-        inventory,
-        timeline,
-        savedQuotes,
-      };
-      // Use a functional update to get the latest storyStates without adding it to dependencies
-      setStoryStates(prevStates => {
-        const newStates = { ...prevStates, [selectedBook.id]: currentState };
-        try {
-          localStorage.setItem(STORY_STATES_KEY, JSON.stringify(newStates));
-        } catch (error) {
-          console.error("Failed to save story state to local storage:", error);
+    if (!user) { // Create new user
+        let avatarUrl: string | undefined = undefined;
+        // Create a temporary user to get an ID for avatar storage path
+        const tempUserForId = await supabaseService.createUser(name);
+        if (!tempUserForId) {
+             setNotification("حدث خطأ أثناء إنشاء المستخدم.");
+             return;
         }
-        return newStates;
-      });
-    }
-  }, [selectedBook, messages, storyProgress, storyDiary, storyNotes, inventory, timeline, savedQuotes]);
 
+        if (avatarFile) {
+            avatarUrl = await supabaseService.uploadAvatar(tempUserForId.id, avatarFile);
+        }
+
+        await supabaseService.updateUser(tempUserForId.id, { avatar_url: avatarUrl });
+        user = { ...tempUserForId, avatar_url: avatarUrl };
+    }
+
+    if (user) {
+        const data = await supabaseService.loadInitialData(user.id);
+        if(data) {
+            setCurrentUser(data.user);
+            setStoryStates(data.storyStates);
+            setUserGeneratedBooks(data.userBooks);
+            setUnlockedAchievements(data.user.unlocked_achievements || []);
+            setGlobalProgress(data.user.global_progress || 0);
+            localStorage.setItem(LOCAL_STORAGE_KEY_SESSION_USER_ID, user.id);
+        }
+    }
+};
+
+  const handleLogout = () => {
+      localStorage.removeItem(LOCAL_STORAGE_KEY_SESSION_USER_ID);
+      setCurrentUser(null);
+      // Reset app state on logout
+      setView('library');
+      setSelectedBook(null);
+      setSelectedCharacter(null);
+      setMessages([]);
+      setStoryProgress(0);
+      setStoryDiary([]);
+      setStoryNotes('');
+      setInventory([]);
+      setTimeline([]);
+      setSavedQuotes([]);
+      setUserGeneratedBooks([]);
+      setStoryStates({});
+      setUnlockedAchievements([]);
+  };
+
+  useEffect(() => {
+    if (currentUser && unlockedAchievements.length > 0) {
+        supabaseService.updateUser(currentUser.id, { unlocked_achievements: unlockedAchievements });
+    }
+  }, [unlockedAchievements, currentUser]);
 
   const handleThemeToggle = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
@@ -358,8 +411,7 @@ function App() {
   };
   
   const handleBackToLibraryGrid = () => {
-      // Auto-saving is handled by the useEffect hook.
-      // This function just needs to reset the active story state.
+      saveCurrentStoryState();
       setSelectedBook(null);
       setSelectedCharacter(null);
       setMessages([]);
@@ -387,7 +439,7 @@ function App() {
 
   const handleStartStory = (book: AnyBook) => {
     const savedState = storyStates[book.id];
-    setSelectedBook(book); // Set book state immediately
+    setSelectedBook(book);
 
     const storyCharacter = book.isUserGenerated
         ? { id: 'narrator', name: 'الراوي', description: 'سارد قصتك', persona: book.initialPrompt }
@@ -395,7 +447,6 @@ function App() {
     setSelectedCharacter(storyCharacter);
 
     if (savedState && savedState.messages.length > 0) {
-        // Load existing story state
         setMessages(savedState.messages);
         setStoryProgress(savedState.storyProgress);
         setStoryDiary(savedState.storyDiary);
@@ -405,7 +456,6 @@ function App() {
         setSavedQuotes(savedState.savedQuotes);
         setView('story');
     } else {
-        // Reset state for a new story
         setMessages([]);
         setStoryProgress(0);
         setStoryDiary([]);
@@ -413,12 +463,10 @@ function App() {
         setInventory([]);
         setTimeline([]);
         setSavedQuotes([]);
-
-        // Send initial message to start the story
         handleSendMessage("ابدأ القصة.", {
             characterOverride: storyCharacter,
             isStoryMode: true,
-            bookForStory: book, // Pass the book object directly to avoid stale state
+            bookForStory: book,
         });
     }
   };
@@ -441,11 +489,29 @@ function App() {
     }
   };
 
-  const handleSaveUserBook = (bookToSave: UserGeneratedBook) => {
-    // Auto-saving is handled by a useEffect hook.
-    setUserGeneratedBooks(prevBooks => [...prevBooks, bookToSave]);
-    handleStartStory(bookToSave);
+  const handleSaveUserBook = async (bookData: Omit<UserGeneratedBook, 'id' | 'user_id' | 'isUserGenerated'>) => {
+    if (!currentUser) return;
+    
+    const newBookFromDB = await supabaseService.saveUserGeneratedBook(currentUser.id, bookData);
+    
+    if (newBookFromDB) {
+      const bookWithClientFields: UserGeneratedBook = {
+        ...newBookFromDB,
+        isUserGenerated: true,
+      };
+      setUserGeneratedBooks(prev => [...prev, bookWithClientFields]);
+      handleStartStory(bookWithClientFields);
+    } else {
+      setNotification("فشل حفظ الرواية. الرجاء المحاولة مرة أخرى.");
+    }
   };
+
+  const handleSetView = (newView: View) => {
+    if (selectedBook && view !== newView && (view === 'story' || view === 'chat' || view === 'journal')) {
+        saveCurrentStoryState();
+    }
+    setView(newView);
+  }
 
   const handleSendMessage = async (
     text: string,
@@ -456,20 +522,18 @@ function App() {
     if (!characterForAPI) return;
 
     const newUserMessage: Message = { role: Role.USER, content: text };
-    const currentMessages = messages;
     
     if (isStoryMode) {
       setTimeline(prev => [...prev, { type: 'choice', content: text }]);
     }
     
-    const updatedMessages = [...currentMessages, newUserMessage];
+    const updatedMessages = [...messages, newUserMessage];
     setMessages(updatedMessages);
     setIsLoading(true);
 
     const personaDetails = characterForAPI.persona;
     let systemInstruction = '';
     
-    // Use the passed book object if available, otherwise use state to avoid stale state on first call
     const currentBook = bookForStory || selectedBook;
 
     if (isStoryMode && currentBook) {
@@ -532,6 +596,14 @@ function App() {
     }
   };
 
+  if (!sessionChecked) {
+      return <FullScreenLoader />;
+  }
+
+  if (!currentUser) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
   const isStoryActive = messages.some(msg => msg.role === Role.NARRATOR);
   const isJournalEnabled = isStoryActive && !selectedBook?.isUserGenerated;
 
@@ -593,7 +665,7 @@ function App() {
                        savedQuotes={savedQuotes}
                    />;
         case 'createNovel':
-            return <AddNovel onSave={handleSaveUserBook} onCancel={handleBackToLibraryGrid} />;
+            return <AddNovel onSave={handleSaveUserBook} onCancel={handleBackToLibraryGrid} userName={currentUser.name} />;
         default:
             return <LibraryScreen books={allBooks} selectedBook={null} storyProgress={progressMap} onBookSelect={handleBookSelect} onCharacterSelect={handleCharacterSelect} onStartStory={handleStartStory} onBackToGrid={handleBackToLibraryGrid} onCreateNovel={() => setView('createNovel')} />;
     }
@@ -602,7 +674,13 @@ function App() {
   return (
     <main className="h-screen w-screen bg-brand-bg-dark text-brand-text-light flex flex-col overflow-hidden transition-colors duration-500">
       
-      <TopHeader theme={theme} onThemeToggle={handleThemeToggle} globalProgress={globalProgress} />
+      <TopHeader 
+        user={currentUser}
+        theme={theme} 
+        onThemeToggle={handleThemeToggle} 
+        globalProgress={globalProgress} 
+        onLogout={handleLogout}
+      />
       
       <div className="flex-1 overflow-y-auto relative">
          <div className="absolute inset-0 transition-opacity duration-500 animate-fade-in">
@@ -653,7 +731,7 @@ function App() {
 
       <BottomNavBar 
         currentView={view} 
-        setView={setView} 
+        setView={handleSetView} 
         isChatActive={!!selectedCharacter && view === 'chat'} 
         isStoryActive={isStoryActive}
         isJournalEnabled={isJournalEnabled}

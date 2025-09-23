@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 type View = 'library' | 'chat' | 'story' | 'achievements' | 'journal' | 'createNovel';
@@ -12,7 +13,7 @@ interface BottomNavBarProps {
 
 const NavButton: React.FC<{
   label: string;
-  icon: JSX.Element;
+  icon: React.ReactNode;
   isActive: boolean;
   isDisabled?: boolean;
   activeGradient: string;
