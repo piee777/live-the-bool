@@ -63,23 +63,6 @@
       }
     </script>
     
-    <!-- ES Module Shims for importmap support -->
-    <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js" crossorigin="anonymous"></script>
-
-    <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.1.1",
-    "react-dom/client": "https://esm.sh/react-dom@^19.1.1/client",
-    "@google/genai": "https://esm.sh/@google/genai@^1.13.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.45.0",
-    "react/": "https://esm.sh/react@^19.1.1/",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
-    "@netlify/functions": "https://aistudiocdn.com/@netlify/functions@^4.2.6"
-  }
-}
-</script>
-
     <!-- SystemJS for client-side module loading and Babel for TSX transpilation -->
     <script src="https://unpkg.com/systemjs@6.15.1/dist/s.min.js"></script>
     <script src="https://unpkg.com/systemjs-plugin-babel@latest/plugin-babel.js"></script>
@@ -88,6 +71,9 @@
     <script type="systemjs-config">
     {
         "map": {
+            "react": "https://esm.sh/react@^19.1.1",
+            "react-dom/client": "https://esm.sh/react-dom@^19.1.1/client",
+            "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.45.0",
             "plugin-babel": "https://unpkg.com/systemjs-plugin-babel@latest/plugin-babel.js",
             "systemjs-babel-build": "https://unpkg.com/systemjs-plugin-babel@latest/systemjs-babel-browser.js"
         },
@@ -100,6 +86,18 @@
         "transpiler": "plugin-babel"
     }
     </script>
+<script type="importmap">
+{
+  "imports": {
+    "@netlify/functions": "https://aistudiocdn.com/@netlify/functions@^4.2.6",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.57.4"
+  }
+}
+</script>
 </head>
   <body>
     <div id="root"></div>
