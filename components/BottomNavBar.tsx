@@ -1,12 +1,13 @@
 import React from 'react';
 
-type View = 'library' | 'chat' | 'story' | 'achievements' | 'journal';
+type View = 'library' | 'chat' | 'story' | 'achievements' | 'journal' | 'createNovel';
 
 interface BottomNavBarProps {
   currentView: View;
   setView: (view: View) => void;
   isChatActive: boolean;
   isStoryActive: boolean;
+  isJournalEnabled: boolean;
 }
 
 const NavButton: React.FC<{
@@ -38,7 +39,7 @@ const NavButton: React.FC<{
 };
 
 
-export const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentView, setView, isChatActive, isStoryActive }) => {
+export const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentView, setView, isChatActive, isStoryActive, isJournalEnabled }) => {
   return (
     <footer className="flex-shrink-0 w-full bg-brand-surface-dark/80 backdrop-blur-lg border-t border-white/10">
       <nav className="max-w-md mx-auto flex justify-around items-center">
@@ -58,10 +59,10 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentView, setView
           onClick={() => setView('story')}
         />
         <NavButton
-            label="المذكرات"
+            label="السجل"
             icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg>}
             isActive={currentView === 'journal'}
-            isDisabled={!isStoryActive}
+            isDisabled={!isJournalEnabled}
             activeGradient="bg-gradient-bronze-warm"
             onClick={() => setView('journal')}
         />

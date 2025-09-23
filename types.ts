@@ -47,4 +47,38 @@ export interface Book {
   author: string;
   summary: string;
   characters: Character[];
+  isUserGenerated?: false;
+}
+
+export interface UserGeneratedBook {
+  id: string;
+  title: string;
+  author: string;
+  summary: string; // User's short description
+  initialPrompt: string; // Detailed prompt for the AI
+  isUserGenerated: true;
+}
+
+export type AnyBook = Book | UserGeneratedBook;
+
+
+export interface TimelineEvent {
+  type: 'narration' | 'choice';
+  content: string;
+}
+
+// FIX: Add missing types for UserStoryView component
+export interface UserStoryChoice {
+  text: string;
+  destinationChapterId: string;
+}
+
+export interface UserChapter {
+  id: string;
+  content: string;
+  choices?: UserStoryChoice[];
+}
+
+export interface UserBook {
+  chapters: UserChapter[];
 }

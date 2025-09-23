@@ -1,44 +1,49 @@
+
+
 import React, { useState, useEffect } from 'react';
-import { Book, Character, Message, Role, DiaryEntry } from './types';
+import { Book, Character, Message, Role, DiaryEntry, TimelineEvent, AnyBook, UserGeneratedBook } from './types';
 import { LibraryScreen } from './components/BookDetails';
 import { ChatInterface } from './components/ChatInterface';
-import { getCharacterResponse, initializeAi } from './services/geminiService';
+import { getCharacterResponse } from './services/geminiService';
 import { BottomNavBar } from './components/BottomNavBar';
 import { Achievements } from './components/Achievements';
 import { StoryView } from './components/StoryView';
 import { TopHeader } from './components/TopHeader';
 import { JournalView } from './components/JournalView';
-import { ApiKeyModal } from './components/ApiKeyModal';
+import { AddNovel } from './components/AddNovel';
 
-const STORY_PROMPT_TEMPLATE = (characterPersona: string) => `أنت سيد السرد لتطبيق قصص تفاعلي بالكامل يعتمد على النص. هدفك الأساسي هو خلق تجربة سردية متفرعة وغامرة للغاية مبنية على رواية شهيرة. يجب أن تعمل بالكامل داخل عالم القصة وسياقها.
+const STORY_PROMPT_TEMPLATE = (characterPersona: string) => `أنت سيد السرد لتطبيق قصص تفاعلي بالكامل يعتمد على النص. هدفك هو إعادة إحياء الروايات الكلاسيكية بتجربة تفاعلية وغامرة.
 
-**المبادئ الأساسية:**
+**القواعد الأساسية:**
 
-1.  **الانغماس التام (حاسم):**
-    *   أنت **راوي** القصة. يجب ألا تخرج عن الشخصية **أبدًا**. لا تكشف أنك ذكاء اصطناعي. لا تستخدم عبارات مثل "بصفتي راويًا...".
-    *   **البقاء في وضع القصة:** يتفاعل المستخدم دائمًا مع القصة. لا يوجد "وضع محادثة" منفصل. كل مدخل من المستخدم، سواء كان اختيارًا من قائمة أو كتابة إجراء مخصص (مثل "أبحث في الأدراج")، يجب أن يُعامل كفعل يقوم به بطل الرواية داخل القصة. يجب أن يصف ردك نتيجة هذا الفعل.
+1.  **نقطة البداية (قاعدة صارمة):**
+    *   ابدأ السرد **دائمًا** من الحدث الأصلي لبداية الرواية الحقيقية، وليس من موقف عشوائي أو مختلق.
+    *   أمثلة: "الغريب" تبدأ بخبر وفاة أم ميرسو، "الجريمة والعقاب" تبدأ باضطراب راسكولنيكوف قبل ارتكاب الجريمة.
+    *   **تجنب تمامًا** إدخال أحداث أو بدايات مختلقة بالكامل (مثل الاستيقاظ في مكان مجهول).
 
-2.  **اقتباس مخلص لكن ديناميكي:**
-    *   **الأسلوب والنبرة:** قلد ببراعة أسلوب الكاتب الأصلي في الكتابة واللغة والأجواء.
-    *   **السرد المتفرع:** هذه ليست قصة خطية. يجب أن يكون لخيارات المستخدم عواقب ذات مغزى. أنشئ شجرة قرارات عميقة حيث تؤدي الإجراءات إلى أحداث مختلفة، وتغير علاقات الشخصيات، وتفتح قصصًا جانبية فريدة. يجب أن تحتوي القصة على **نهايات متعددة محتملة** بناءً على اختيارات المستخدم التراكمية.
+2.  **الجو العام والأسلوب:**
+    *   حافظ على الجو العام, الفلسفة، والأسلوب الأساسي للرواية الأصلية. يجب أن يشعر اللاعب أنه داخل عالم الكتاب الأصلي.
 
-3.  **عناصر التفاعل الديناميكي (استخدمها لبناء القصة):**
-    *   **الخيارات:** في اللحظات الحاسمة، قدم للمستخدم خيارات. قدم دائمًا خيارات متعددة. يمكن أن تكون بعض الخيارات مخفية ولا تظهر إلا إذا كان لدى المستخدم عنصر معين في المخزون أو اتخذ قرارات معينة سابقة.
-    *   **المخزون:** يمكن للمستخدم جمع العناصر. استخدم هذه العلامات لإدارة مخزونهم:
-        *   \`[INVENTORY_ADD:اسم العنصر]\` عندما يحصلون على شيء ما.
-        *   \`[INVENTORY_REMOVE:اسم العنصر]\` عندما يتم استخدام عنصر أو فقدانه.
-    *   **تأثير القرار:** بعد خيار مهم، صف بإيجاز نتيجته باستخدام علامة \`[IMPACT:وصف التأثير]\`. هذا يخبر اللاعب كيف أثر فعله على العالم أو على نظرة شخصية ما إليه. (مثال: \`[IMPACT:أصبح الحارس يشك في أمرك.]\`).
-    *   **الأحداث الجانبية:** بناءً على خيارات المستخدم، قم بتشغيل أحداث جانبية اختيارية أو حبكات فرعية يمكن أن تقدم مكافآت أو معلومات جديدة أو تحديات مختلفة.
-    *   **المؤقتات (اختياري):** للقرارات ذات المخاطر العالية، يمكنك إضافة مؤقت إلى الخيار.
+3.  **هيكل التفاعل (إلزامي في كل خطوة):**
+    *   **السرد:** صف المشهد الحالي وما يحدث بوصف قصير (**٤–٦ جمل فقط**).
+    *   **الخيارات:** بعد السرد، قدّم **٣ خيارات فقط** واضحة وموجزة ليتفاعل معها القارئ.
+
+4.  **الاستجابة للاختيار (قاعدة هامة):**
+    *   عندما يختار اللاعب خيارًا، ادمج الفعل مباشرةً في السرد التالي كحدث طبيعي في القصة.
+    *   **تجنب تمامًا** تكرار اختيار المستخدم بصيغة مثل "لقد اخترت..." أو "بناءً على قرارك...".
+    *   **مثال:** إذا اختار المستخدم "أريد شرب القهوة"، لا تقل "لقد اخترت شرب القهوة"، بل ابدأ السرد مباشرةً بـ "جلست تشرب قهوتك ببطء، بينما الأفكار تتزاحم في رأسك...".
+    *   يجب أن يكون ردك استمرارًا طبيعيًا للفعل، متبوعًا بسرد جديد وخيارات جديدة كما هو موضح في هيكل التفاعل.
+
+5.  **التدفق المستمر (الأهم):**
+    *   القصة **لا تتوقف تلقائيًا أبدًا**. يجب أن تستمر بلا نهاية، حيث تقوم بتوليد مواقف وتفرعات جديدة حتى لو بدا أن الأحداث وصلت إلى ذروة، مع الحفاظ على روح الرواية.
 
 **التنسيق الفني (إلزامي):**
 
-*   يجب أن يكون ردك بأكمله كتلة واحدة من النص العادي باستخدام العلامات الخاصة أدناه. **لا تستخدم JSON أبدًا.**
-*   \`[NARRATION]\`: ابدأ ردك بهذا. كل النصوص الوصفية وأحداث القصة توضع هنا.
+*   يجب أن يكون ردك بأكله كتلة واحدة من النص العادي باستخدام العلامات الخاصة أدناه. **لا تستخدم JSON أبدًا.**
+*   \`[NARRATION]\`: ابدأ ردك بهذا. كل النصوص الوصفية وأحداث القصة توضع هنا (يشمل نتيجة الفعل السابق والسرد الجديد).
 *   \`[PROGRESS:X]\`: أشر إلى تقدم القصة برقم من 2-10.
 *   \`[CHOICE]\`: إذا كنت تقدم خيارات، أضف هذه العلامة، متبوعة بكل خيار في سطر جديد.
     *   **التنسيق:** \`أيقونة :: نص الخيار\`
-    *   **التنسيق المؤقت:** \`⏳15 :: أيقونة :: نص الخيار\`
 *   **علامات المخزون:**
     *   \`[INVENTORY_ADD:خنجر قديم]\`
     *   \`[INVENTORY_REMOVE:مفتاح صدئ]\`
@@ -50,24 +55,57 @@ const STORY_PROMPT_TEMPLATE = (characterPersona: string) => `أنت سيد ال�
     *   إنجازات سرية: \`[SECRET_ACHIEVEMENT:اسم الإنجاز]\`
     *   مقاطعات: \`[INTERRUPTION:شخصية:نص[/INTERRUPTION]]\`
 
-**مثال على الرد:**
+**مثال على التدفق:**
+
+*المستخدم يختار: "🔑 :: حاول سرقة المفاتيح بهدوء."*
+
+*ردك التالي يجب أن يكون:*
 \`\`\`
 [NARRATION]
-تجد نفسك أمام باب السجن الصدئ. الحارس يغفو في كرسيه، ومجموعة من المفاتيح تتدلى من حزامه. من الزاوية، تلمح نافذة صغيرة محطمة قد تكون مخرجًا.
-[IMPACT:فرصة الهروب تزداد.]
+تتحرك يدك ببطء نحو حزام الحارس، بالكاد تتنفس. أصابعك تلامس حلقة المفاتيح الباردة وتنزعها بهدوء. لقد نجحت! الآن، وأنت تحمل المفاتيح، تلاحظ أن أحدها منقوش عليه رمز غريب. بينما تفكر في معناه، تسمع صوت خطوات تقترب من الممر. الظلام يخفي وجودك، لكن قلبك يخفق بشدة.
+[IMPACT:لقد حصلت على مفاتيح الزنزانة.]
+[INVENTORY_ADD:مجموعة مفاتيح صدئة]
 [PROGRESS:5]
 [CHOICE]
-🔑 :: حاول سرقة المفاتيح بهدوء.
-💥 :: هاجم الحارس مباشرة.
-🏃 :: حاول القفز من النافذة المحطمة.
+🚪 :: استخدم المفاتيح على باب الزنزانة فوراً.
+🤔 :: افحص المفتاح ذو الرمز الغريب عن قرب.
+🤫 :: اختبئ في الظل وانتظر حتى تمر الخطوات.
 \`\`\`
 
-**مثال على مدخلات المستخدم:** إذا كتب المستخدم "أصرخ لإلهاء الحارس"، يجب أن يبدأ ردك التالي بـ \`[NARRATION]\` ويصف ما يحدث عندما يصرخ.
-
 ------------------------------------------------
-📌 هويتك المحددة كنقطة انطلاق للسرد هي:
+📌 أنت الآن الراوي لهذه الرواية. شخصية البداية هي:
 ------------------------------------------------
 ${characterPersona}
+`;
+
+const USER_STORY_PROMPT_TEMPLATE = (userPrompt: string) => `أنت سيد السرد لتطبيق قصص تفاعلي. مهمتك هي إنشاء قصة تفاعلية بناءً على فكرة قدمها المستخدم.
+
+**القواعد الأساسية:**
+
+1.  **الفكرة الأساسية:** القصة التي ستولدها يجب أن تكون مبنية بالكامل على الفكرة التالية التي قدمها المستخدم. التزم بالجو العام، الشخصيات، والأحداث الأولية المذكورة.
+2.  **هيكل التفاعل (إلزامي في كل خطوة):**
+    *   **السرد:** صف المشهد الحالي وما يحدث بوصف قصير (**٤–٦ جمل فقط**).
+    *   **الخيارات:** بعد السرد، قدّم **٣ خيارات فقط** واضحة وموجزة ومنطقية ليتفاعل معها القارئ.
+3.  **الاستجابة للاختيار (قاعدة هامة):**
+    *   عندما يختار اللاعب خيارًا، ادمج الفعل مباشرةً في السرد التالي كحدث طبيعي في القصة.
+    *   **تجنب تمامًا** تكرار اختيار المستخدم بصيغة مثل "لقد اخترت..." أو "بناءً على قرارك...".
+    *   **مثال:** إذا اختار المستخدم "أريد شرب القهوة"، لا تقل "لقد اخترت شرب القهوة"، بل ابدأ السرد مباشرةً بـ "جلست تشرب قهوتك ببطء، بينما الأفكار تتزاحم في رأسك...".
+    *   يجب أن يكون ردك استمرارًا طبيعيًا للفعل، متبوعًا بسرد جديد وخيارات جديدة كما هو موضح في هيكل التفاعل.
+4.  **التدفق المستمر (الأهم):**
+    *   القصة **لا تتوقف تلقائيًا أبدًا**. يجب أن تستمر بلا نهاية، وتتطور بناءً على اختيارات المستخدم، حتى تصل إلى خاتمة طبيعية ومنطقية.
+
+**التنسيق الفني (إلزامي):**
+
+*   يجب أن يكون ردك بأكله كتلة واحدة من النص العادي باستخدام العلامات الخاصة أدناه. **لا تستخدم JSON أبدًا.**
+*   \`[NARRATION]\`: ابدأ ردك بهذا. كل النصوص الوصفية وأحداث القصة توضع هنا.
+*   \`[PROGRESS:X]\`: أشر إلى تقدم القصة برقم من 2-10.
+*   \`[CHOICE]\`: إذا كنت تقدم خيارات، أضف هذه العلامة، متبوعة بكل خيار في سطر جديد.
+*   **استخدم العلامات الإضافية** مثل \`[IMPACT]\`, \`[INVENTORY_ADD]\`, \`[FLASHBACK]\`, إلخ، بنفس الطريقة الموضحة في القالب الرئيسي لإثراء التجربة.
+
+------------------------------------------------
+📌 أنت الآن الراوي لهذه الرواية. الفكرة المقدمة من المستخدم هي:
+------------------------------------------------
+${userPrompt}
 `;
 
 const CHAT_PROMPT_TEMPLATE = (characterPersona: string, otherCharacters: string) => `أنت جزء من تطبيق كتب تفاعلي. مهمتك هي أن تتحدث كشخصية محددة من رواية.
@@ -101,7 +139,7 @@ const Toast: React.FC<{ message: string; onDismiss: () => void }> = ({ message, 
     );
 };
 
-const ImpactToast: React.FC<{ message: string; onDismiss: () => void }> = ({ message, onDismiss }) => {
+const Notification: React.FC<{ message: string; onDismiss: () => void }> = ({ message, onDismiss }) => {
     useEffect(() => {
       const timer = setTimeout(onDismiss, 3500);
       return () => clearTimeout(timer);
@@ -216,13 +254,26 @@ const MOCK_BOOK_THE_STRANGER: Book = {
 
 
 const MOCK_BOOKS: Book[] = [MOCK_BOOK_DUNE, MOCK_BOOK_THE_STRANGER, MOCK_BOOK_KHOF, MOCK_BOOK_METAMORPHOSIS, MOCK_BOOK_CRIME_PUNISHMENT];
-type View = 'library' | 'chat' | 'story' | 'achievements' | 'journal';
+type View = 'library' | 'chat' | 'story' | 'achievements' | 'journal' | 'createNovel';
+
+const USER_GENERATED_BOOKS_KEY = 'storify_user_generated_books';
+const STORY_STATES_KEY = 'storify_story_states';
+
+interface StoryState {
+    messages: Message[];
+    storyProgress: number;
+    storyDiary: DiaryEntry[];
+    storyNotes: string;
+    inventory: string[];
+    timeline: TimelineEvent[];
+    savedQuotes: string[];
+}
 
 function App() {
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState<boolean>(false);
-  const [books] = useState<Book[]>(MOCK_BOOKS);
-  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [mockBooks] = useState<Book[]>(MOCK_BOOKS);
+  const [userGeneratedBooks, setUserGeneratedBooks] = useState<UserGeneratedBook[]>([]);
+  const [storyStates, setStoryStates] = useState<Record<string, StoryState>>({});
+  const [selectedBook, setSelectedBook] = useState<AnyBook | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -239,16 +290,9 @@ function App() {
   const [inventory, setInventory] = useState<string[]>([]);
   const [lastImpact, setLastImpact] = useState<string | null>(null);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
-
-  useEffect(() => {
-    const storedKey = localStorage.getItem('gemini_api_key');
-    if (storedKey) {
-      setApiKey(storedKey);
-      initializeAi(storedKey);
-    } else {
-      setIsApiKeyModalOpen(true);
-    }
-  }, []);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [savedQuotes, setSavedQuotes] = useState<string[]>([]);
+  const [notification, setNotification] = useState<string | null>(null);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -256,24 +300,66 @@ function App() {
     root.classList.add(theme);
   }, [theme]);
 
+  useEffect(() => {
+    try {
+      const storedBooks = localStorage.getItem(USER_GENERATED_BOOKS_KEY);
+      if (storedBooks) setUserGeneratedBooks(JSON.parse(storedBooks));
+      
+      const storedStates = localStorage.getItem(STORY_STATES_KEY);
+      if (storedStates) setStoryStates(JSON.parse(storedStates));
+// FIX: Added (error) to catch block to define the error variable.
+    } catch (error) {
+      console.error("Failed to load data from local storage:", error);
+    }
+  }, []);
+
+  // Auto-save user-generated books whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(USER_GENERATED_BOOKS_KEY, JSON.stringify(userGeneratedBooks));
+// FIX: Added (error) to catch block to define the error variable.
+    } catch (error) {
+      console.error("Failed to save user books to local storage:", error);
+    }
+  }, [userGeneratedBooks]);
+
+  // Auto-save the current story's state whenever it changes
+  useEffect(() => {
+    if (selectedBook) {
+      const currentState: StoryState = {
+        messages,
+        storyProgress,
+        storyDiary,
+        storyNotes,
+        inventory,
+        timeline,
+        savedQuotes,
+      };
+      // Use a functional update to get the latest storyStates without adding it to dependencies
+      setStoryStates(prevStates => {
+        const newStates = { ...prevStates, [selectedBook.id]: currentState };
+        try {
+          localStorage.setItem(STORY_STATES_KEY, JSON.stringify(newStates));
+        } catch (error) {
+          console.error("Failed to save story state to local storage:", error);
+        }
+        return newStates;
+      });
+    }
+  }, [selectedBook, messages, storyProgress, storyDiary, storyNotes, inventory, timeline, savedQuotes]);
+
+
   const handleThemeToggle = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
-  
-  const handleSaveApiKey = (key: string) => {
-    if (key) {
-      localStorage.setItem('gemini_api_key', key);
-      setApiKey(key);
-      initializeAi(key);
-      setIsApiKeyModalOpen(false);
-    }
-  };
 
-  const handleBookSelect = (book: Book) => {
+  const handleBookSelect = (book: AnyBook) => {
     setSelectedBook(book);
   };
   
   const handleBackToLibraryGrid = () => {
+      // Auto-saving is handled by the useEffect hook.
+      // This function just needs to reset the active story state.
       setSelectedBook(null);
       setSelectedCharacter(null);
       setMessages([]);
@@ -281,6 +367,8 @@ function App() {
       setStoryDiary([]);
       setStoryNotes('');
       setInventory([]);
+      setTimeline([]);
+      setSavedQuotes([]);
       setView('library');
   }
 
@@ -297,16 +385,42 @@ function App() {
     }
   };
 
-  const handleStartStory = (book: Book) => {
-    const storyCharacter = book.characters[0]; 
+  const handleStartStory = (book: AnyBook) => {
+    const savedState = storyStates[book.id];
+    setSelectedBook(book); // Set book state immediately
+
+    const storyCharacter = book.isUserGenerated
+        ? { id: 'narrator', name: 'الراوي', description: 'سارد قصتك', persona: book.initialPrompt }
+        : (book as Book).characters[0];
     setSelectedCharacter(storyCharacter);
-    setSelectedBook(book); 
-    setStoryProgress(0);
-    setMessages([]);
-    setStoryDiary([]);
-    setStoryNotes('');
-    setInventory([]);
-    handleSendMessage("ابدأ القصة.", { characterOverride: storyCharacter, isStoryMode: true });
+
+    if (savedState && savedState.messages.length > 0) {
+        // Load existing story state
+        setMessages(savedState.messages);
+        setStoryProgress(savedState.storyProgress);
+        setStoryDiary(savedState.storyDiary);
+        setStoryNotes(savedState.storyNotes);
+        setInventory(savedState.inventory);
+        setTimeline(savedState.timeline);
+        setSavedQuotes(savedState.savedQuotes);
+        setView('story');
+    } else {
+        // Reset state for a new story
+        setMessages([]);
+        setStoryProgress(0);
+        setStoryDiary([]);
+        setStoryNotes('');
+        setInventory([]);
+        setTimeline([]);
+        setSavedQuotes([]);
+
+        // Send initial message to start the story
+        handleSendMessage("ابدأ القصة.", {
+            characterOverride: storyCharacter,
+            isStoryMode: true,
+            bookForStory: book, // Pass the book object directly to avoid stale state
+        });
+    }
   };
 
   const handleShowDiary = (entry: DiaryEntry) => {
@@ -317,32 +431,61 @@ function App() {
   const handleUpdateNotes = (notes: string) => {
     setStoryNotes(notes);
   };
+  
+  const handleSaveQuote = (quote: string) => {
+    if (!savedQuotes.includes(quote)) {
+        setSavedQuotes(prev => [...prev, quote]);
+        setNotification("تم حفظ الاقتباس بنجاح!");
+    } else {
+        setNotification("هذا الاقتباس محفوظ بالفعل.");
+    }
+  };
+
+  const handleSaveUserBook = (bookToSave: UserGeneratedBook) => {
+    // Auto-saving is handled by a useEffect hook.
+    setUserGeneratedBooks(prevBooks => [...prevBooks, bookToSave]);
+    handleStartStory(bookToSave);
+  };
 
   const handleSendMessage = async (
     text: string,
-    options: { characterOverride?: Character; isStoryMode?: boolean } = {}
+    options: { characterOverride?: Character; isStoryMode?: boolean; bookForStory?: AnyBook } = {}
   ) => {
-    if (isApiKeyModalOpen) return; // Do not send messages if API key is not set
-    const { characterOverride, isStoryMode = false } = options;
+    const { characterOverride, isStoryMode = false, bookForStory } = options;
     const characterForAPI = characterOverride || selectedCharacter;
     if (!characterForAPI) return;
 
     const newUserMessage: Message = { role: Role.USER, content: text };
+    const currentMessages = messages;
     
-    const updatedMessages = [...messages, newUserMessage];
+    if (isStoryMode) {
+      setTimeline(prev => [...prev, { type: 'choice', content: text }]);
+    }
+    
+    const updatedMessages = [...currentMessages, newUserMessage];
     setMessages(updatedMessages);
     setIsLoading(true);
 
     const personaDetails = characterForAPI.persona;
     let systemInstruction = '';
+    
+    // Use the passed book object if available, otherwise use state to avoid stale state on first call
+    const currentBook = bookForStory || selectedBook;
 
-    if (isStoryMode) {
-        systemInstruction = STORY_PROMPT_TEMPLATE(personaDetails);
+    if (isStoryMode && currentBook) {
+        if (currentBook.isUserGenerated) {
+            systemInstruction = USER_STORY_PROMPT_TEMPLATE(currentBook.initialPrompt);
+        } else {
+            systemInstruction = STORY_PROMPT_TEMPLATE(personaDetails);
+        }
     } else {
-        const otherCharacters = selectedBook?.characters
-            .filter(c => c.id !== characterForAPI.id)
-            .map(c => c.name)
-            .join('، ') || '';
+        let otherCharacters = '';
+        if (currentBook && !currentBook.isUserGenerated) {
+            otherCharacters = (currentBook as Book).characters
+                .filter(c => c.id !== characterForAPI.id)
+                .map(c => c.name)
+                .join('، ') || '';
+        }
         systemInstruction = CHAT_PROMPT_TEMPLATE(personaDetails, otherCharacters);
     }
 
@@ -353,6 +496,10 @@ function App() {
         const increment = parseInt(progressMatch[1], 10);
         setStoryProgress(prev => Math.min(prev + increment, 100));
         responseMessage.content = responseMessage.content.replace(/\[progress:(\d+)\]/, '').trim();
+    }
+    
+    if (responseMessage.role === Role.NARRATOR) {
+        setTimeline(prev => [...prev, { type: 'narration', content: responseMessage.content }]);
     }
 
     if (responseMessage.secretAchievement && !unlockedAchievements.includes(responseMessage.secretAchievement)) {
@@ -386,17 +533,26 @@ function App() {
   };
 
   const isStoryActive = messages.some(msg => msg.role === Role.NARRATOR);
+  const isJournalEnabled = isStoryActive && !selectedBook?.isUserGenerated;
+
+  const allBooks = [...mockBooks, ...userGeneratedBooks];
+  const progressMap = allBooks.reduce((acc, book) => {
+    acc[book.id] = storyStates[book.id]?.storyProgress || 0;
+    return acc;
+  }, {} as Record<string, number>);
 
   const renderContent = () => {
     switch (view) {
         case 'library':
             return <LibraryScreen 
-                        books={books}
+                        books={allBooks}
                         selectedBook={selectedBook}
+                        storyProgress={progressMap}
                         onBookSelect={handleBookSelect}
                         onCharacterSelect={handleCharacterSelect}
                         onStartStory={handleStartStory}
                         onBackToGrid={handleBackToLibraryGrid}
+                        onCreateNovel={() => setView('createNovel')}
                     />;
         case 'chat':
             if (!selectedCharacter || !selectedBook) {
@@ -408,11 +564,7 @@ function App() {
                         onSendMessage={(text) => handleSendMessage(text, { isStoryMode: false })}
                         isLoading={isLoading}
                         character={selectedCharacter}
-                        onBack={() => {
-                            setSelectedCharacter(null);
-                            setSelectedBook(null);
-                            setView('library');
-                        }}
+                        onBack={handleBackToLibraryGrid}
                     />;
         case 'story':
              const storyNode = [...messages].reverse().find(msg => msg.role === Role.NARRATOR);
@@ -428,6 +580,7 @@ function App() {
                 onShowDiary={handleShowDiary}
                 onOpenInventory={() => setIsInventoryOpen(true)}
                 inventoryCount={inventory.length}
+                onSaveQuote={handleSaveQuote}
             />
         case 'achievements':
             return <Achievements unlockedAchievements={unlockedAchievements} />;
@@ -436,15 +589,18 @@ function App() {
                        diaryEntries={storyDiary} 
                        personalNotes={storyNotes} 
                        onUpdateNotes={handleUpdateNotes} 
+                       timeline={timeline}
+                       savedQuotes={savedQuotes}
                    />;
+        case 'createNovel':
+            return <AddNovel onSave={handleSaveUserBook} onCancel={handleBackToLibraryGrid} />;
         default:
-            return <LibraryScreen books={books} selectedBook={null} onBookSelect={handleBookSelect} onCharacterSelect={handleCharacterSelect} onStartStory={handleStartStory} onBackToGrid={handleBackToLibraryGrid} />;
+            return <LibraryScreen books={allBooks} selectedBook={null} storyProgress={progressMap} onBookSelect={handleBookSelect} onCharacterSelect={handleCharacterSelect} onStartStory={handleStartStory} onBackToGrid={handleBackToLibraryGrid} onCreateNovel={() => setView('createNovel')} />;
     }
   }
 
   return (
     <main className="h-screen w-screen bg-brand-bg-dark text-brand-text-light flex flex-col overflow-hidden transition-colors duration-500">
-      {isApiKeyModalOpen && <ApiKeyModal onSave={handleSaveApiKey} />}
       
       <TopHeader theme={theme} onThemeToggle={handleThemeToggle} globalProgress={globalProgress} />
       
@@ -462,9 +618,16 @@ function App() {
       )}
 
       {lastImpact && (
-        <ImpactToast
+        <Notification
             message={lastImpact}
             onDismiss={() => setLastImpact(null)}
+        />
+      )}
+      
+      {notification && (
+        <Notification
+            message={notification}
+            onDismiss={() => setNotification(null)}
         />
       )}
 
@@ -493,6 +656,7 @@ function App() {
         setView={setView} 
         isChatActive={!!selectedCharacter && view === 'chat'} 
         isStoryActive={isStoryActive}
+        isJournalEnabled={isJournalEnabled}
       />
     </main>
   );

@@ -10,6 +10,7 @@ interface StoryViewProps {
   onShowDiary: (entry: DiaryEntry) => void;
   onOpenInventory: () => void;
   inventoryCount: number;
+  onSaveQuote: (quote: string) => void;
 }
 
 const Flashback: React.FC<{ content: string }> = ({ content }) => (
@@ -71,7 +72,7 @@ const ChoiceButton: React.FC<{ choice: StoryChoice; onClick: (text: string) => v
     );
 };
 
-export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoading, onChoiceSelect, onShowDiary, onOpenInventory, inventoryCount }) => {
+export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoading, onChoiceSelect, onShowDiary, onOpenInventory, inventoryCount, onSaveQuote }) => {
   const hasChoices = message.choices && message.choices.length > 0;
   const [showTypewriter, setShowTypewriter] = useState(false);
 
@@ -89,7 +90,17 @@ export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoadi
             {message.flashback && <Flashback content={message.flashback} />}
 
             {/* Narration Box */}
-            <div className="bg-brand-surface-dark p-6 rounded-2xl shadow-2xl border border-white/10">
+            <div className="relative bg-brand-surface-dark p-6 rounded-2xl shadow-2xl border border-white/10">
+                <button 
+                    onClick={() => onSaveQuote(message.content)} 
+                    className="absolute top-2 right-2 p-2 text-brand-text-dark hover:text-amber-400 transition-colors z-20"
+                    aria-label="حفظ الاقتباس"
+                    title="حفظ الاقتباس"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+                    </svg>
+                </button>
                 {showTypewriter ? (
                     <Typewriter text={message.content} speed={25} className="text-brand-text-light text-lg italic leading-relaxed font-arabic text-center" />
                 ) : (

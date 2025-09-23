@@ -17,7 +17,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ theme, onThemeToggle, glob
                     </svg>
                  </div>
                  <div>
-                    <h1 className="text-xl font-bold">Live the Book</h1>
+                    <h1 className="text-xl font-bold">Storify</h1>
                  </div>
             </div>
             <div className="flex items-center gap-2">
