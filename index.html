@@ -74,6 +74,8 @@
             "react": "https://esm.sh/react@^18.3.1",
             "react-dom/client": "https://esm.sh/react-dom@^18.3.1/client",
             "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.45.0",
+            "@google/genai": "https://esm.sh/@google/genai@^0.1.0",
+            "@netlify/functions": "https://esm.sh/@netlify/functions@^2.6.0",
             "plugin-babel": "https://unpkg.com/systemjs-plugin-babel@latest/plugin-babel.js",
             "systemjs-babel-build": "https://unpkg.com/systemjs-plugin-babel@latest/systemjs-babel-browser.js"
         },
@@ -81,7 +83,8 @@
             "./*.tsx": { "loader": "plugin-babel" },
             "./*.ts": { "loader": "plugin-babel" },
             "./components/*.tsx": { "loader": "plugin-babel" },
-            "./services/*.ts": { "loader": "plugin-babel" }
+            "./services/*.ts": { "loader": "plugin-babel" },
+            "./netlify/functions/*.ts": { "loader": "plugin-babel" }
         },
         "transpiler": "plugin-babel"
     }
