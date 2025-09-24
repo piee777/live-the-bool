@@ -6,12 +6,12 @@ const sendSound = new Audio('data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABA
 sendSound.volume = 0.5;
 
 interface ChatInterfaceProps {
-  user: User;
   messages: Message[];
   onSendMessage: (text: string) => void;
   isLoading: boolean;
   character: Character;
   onBack: () => void;
+  currentUser: User | null;
 }
 
 const InterruptionBubble: React.FC<{ interruption: Interruption }> = ({ interruption }) => (
@@ -21,7 +21,7 @@ const InterruptionBubble: React.FC<{ interruption: Interruption }> = ({ interrup
     </div>
 );
 
-const ChatBubble: React.FC<{ message: Message, isLastMessage: boolean, isLoading: boolean, character: Character, user: User }> = ({ message, isLastMessage, isLoading, character, user }) => {
+const ChatBubble: React.FC<{ message: Message, isLastMessage: boolean, isLoading: boolean, character: Character, user: User | null }> = ({ message, isLastMessage, isLoading, character, user }) => {
   const isUser = message.role === Role.USER;
   const isSystem = message.role === Role.SYSTEM;
   const isCharacter = message.role === Role.CHARACTER;
@@ -36,17 +36,18 @@ const ChatBubble: React.FC<{ message: Message, isLastMessage: boolean, isLoading
 
   return (
     <div className={`flex items-end gap-3 my-3 animate-fade-in-up ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-       {isUser ? (
-        <div className="w-9 h-9 rounded-full bg-brand-surface-dark border-2 border-white/20 flex items-center justify-center overflow-hidden self-start flex-shrink-0">
+       {!isUser && (
+        <div className="w-9 h-9 rounded-full bg-gradient-bronze-warm flex items-center justify-center font-bold text-white self-start flex-shrink-0">
+          {character.name.charAt(0)}
+        </div>
+      )}
+      {isUser && user && (
+         <div className="w-9 h-9 rounded-full bg-brand-surface-dark border-2 border-white/20 flex items-center justify-center overflow-hidden self-start flex-shrink-0">
             {user.avatar_url ? (
                 <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
             ) : (
-                <span className="font-bold text-brand-text-medium">{user.name.charAt(0).toUpperCase()}</span>
+                <span className="font-bold text-white">{user.name.charAt(0)}</span>
             )}
-        </div>
-       ) : (
-        <div className="w-9 h-9 rounded-full bg-gradient-bronze-warm flex items-center justify-center font-bold text-white self-start flex-shrink-0">
-          {character.name.charAt(0)}
         </div>
       )}
       <div className={`w-auto max-w-sm md:max-w-md p-3 px-4 rounded-2xl shadow-md ${
@@ -65,7 +66,7 @@ const ChatBubble: React.FC<{ message: Message, isLastMessage: boolean, isLoading
   );
 };
 
-export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, messages, onSendMessage, isLoading, character, onBack }) => {
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, isLoading, character, onBack, currentUser }) => {
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -111,7 +112,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, messages, on
                     isLastMessage={isLastMessage} 
                     isLoading={isLoading}
                     character={character}
-                    user={user}
+                    user={currentUser}
                     />
                 )
                 })}
@@ -135,6 +136,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, messages, on
             {/* Input Area */}
             <div className="flex-shrink-0 p-4 bg-brand-surface-dark/80 backdrop-blur-sm border-t border-white/10">
                 <form onSubmit={handleSend} className="flex items-center gap-3">
+                 {currentUser && (
+                    <div className="w-10 h-10 rounded-full bg-brand-surface-dark border-2 border-white/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {currentUser.avatar_url ? (
+                            <img src={currentUser.avatar_url} alt={currentUser.name} className="w-full h-full object-cover" />
+                        ) : (
+                            <span className="font-bold text-white">{currentUser.name.charAt(0)}</span>
+                        )}
+                    </div>
+                 )}
                 <input
                     type="text"
                     value={inputText}

@@ -40,6 +40,8 @@ export interface Character {
   name: string;
   description: string;
   persona: string;
+  // FIX: Added book_id to link a character to a book.
+  book_id: string;
 }
 
 export interface Book {

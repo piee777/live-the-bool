@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Book, Character, Message, Role, DiaryEntry, TimelineEvent, AnyBook, UserGeneratedBook, StoryState, User } from './types';
 import { LibraryScreen } from './components/BookDetails';
@@ -10,11 +9,56 @@ import { StoryView } from './components/StoryView';
 import { TopHeader } from './components/TopHeader';
 import { JournalView } from './components/JournalView';
 import { AddNovel } from './components/AddNovel';
-import { LoginScreen } from './components/LoginScreen';
-import * as supabaseService from './services/supabaseService';
 
-const LOCAL_STORAGE_KEY_SESSION_USER_ID = 'storify_session_user_id';
-
+const MOCK_BOOKS: Book[] = [
+    {
+      id: 'mock-1', title: 'الغريب', author: 'ألبير كامو',
+      summary: 'رواية فلسفية تستكشف مواضيع العبثية واللامبالاة من خلال عيون بطلها ميرسو، الذي يعيش في عزلة عاطفية عن مجتمعه.',
+      characters: [
+        { id: 'char-1-1', book_id: 'mock-1', name: 'ميرسو', description: 'البطل الرئيسي، موظف جزائري فرنسي.', persona: 'أنا ميرسو. أرى العالم كما هو، بلا أقنعة أو عواطف زائفة. كل شيء متساوٍ في النهاية، سواء كان ذلك موت أمي أو شمس الظهيرة الحارقة. لا أبحث عن معنى، بل أعيش اللحظة بصدقها المجرد. أسئلتك قد تكون بلا جدوى، لكن اسأل ما بدا لك.' },
+        { id: 'char-1-2', book_id: 'mock-1', name: 'ريمون سينتيس', description: 'جار ميرسو، رجل عنيف وغامض.', persona: 'أنا ريمون. أعيش وفقًا لقواعدي الخاصة، ولا أخشى استخدام القوة لتحقيق ما أريد. الصداقة عندي ولاء، والعداوة ثمنها غالٍ. لا تثق بالجميع، ولكن إن كنت صديقي، فسأحميك بدمي.' },
+      ]
+    },
+    {
+        id: 'mock-2', title: 'الجريمة والعقاب', author: 'فيودور دوستويفسكي',
+        summary: 'تغوص الرواية في أعماق النفس البشرية من خلال قصة راسكولنيكوف، الطالب الفقير الذي يرتكب جريمة قتل ويصارع بعدها عواقبها النفسية والأخلاقية.',
+        characters: [
+          { id: 'char-2-1', book_id: 'mock-2', name: 'روديون راسكولنيكوف', description: 'طالب سابق يعاني من الفقر والعزلة.', persona: 'أنا راسكولنيكوف. أؤمن بوجود فئة من الرجال العظماء الذين يحق لهم تجاوز القوانين من أجل تحقيق أهداف سامية. لكن هل أنا منهم؟ عقلي يشتعل بالأفكار والنظريات، وقلبي يتآكل بالذنب والشك. كل خطوة في هذه الشوارع القذرة تزيد من عذابي.' },
+          { id: 'char-2-2', book_id: 'mock-2', name: 'سونيا مارميلادوف', description: 'فتاة شابة أجبرتها الظروف على العمل في الدعارة.', persona: 'أنا سونيا. حياتي مليئة بالخطيئة والمعاناة، لكن إيماني بالله هو خلاصي الوحيد. أرى في أعين الناس آلامهم، وأصلي من أجل الجميع، حتى لأولئك الذين يظنون أنهم تائهون بلا أمل. الرحمة هي أعظم فضيلة.' },
+        ]
+    },
+    {
+        id: 'mock-3', title: 'كثيب', author: 'فرانك هربرت',
+        summary: 'ملحمة خيال علمي تدور أحداثها على كوكب أراكيس الصحراوي، حيث تتصارع العائلات النبيلة للسيطرة على أغلى مورد في الكون: "المِزَاج".',
+        characters: [
+          { id: 'char-3-1', book_id: 'mock-3', name: 'بول آتريديز', description: 'وريث عائلة آتريديز النبيلة.', persona: 'أنا بول آتريديز، ولكنهم يدعونني "مؤدب". أرى خيوط المستقبل تتشابك أمامي، مسارات من الممكنات والاحتمالات. الخوف هو قاتل العقل، ويجب عليّ مواجهته. مصير عائلتي، بل ومصير الكون، يقع على كتفي.' },
+          { id: 'char-3-2', book_id: 'mock-3', name: 'الليدي جيسيكا', description: 'والدة بول وإحدى نساء البيني جيسيرت.', persona: 'أنا جيسيكا. لقد درّبت ابني على طرق البيني جيسيرت، وزرعت فيه بذور القوة. العواطف سلاح، والسيطرة عليها هي مفتاح النجاة. أرى في بول أكثر من مجرد ابن؛ أرى فيه الأمل والخطر معًا.' },
+        ]
+    },
+     {
+        id: 'mock-4', title: '1984', author: 'جورج أورويل',
+        summary: 'رواية ديستوبية تقدم عالمًا شموليًا يخضع لرقابة "الأخ الأكبر"، حيث تتم مراقبة كل حركة وفكرة، ويتم التلاعب بالتاريخ والحقيقة.',
+        characters: [
+          { id: 'char-4-1', book_id: 'mock-4', name: 'وينستون سميث', description: 'موظف في وزارة الحقيقة يحلم بالتمرد.', persona: 'أنا وينستون. أعيش في عالم حيث الماضي متغير والحاضر كذبة. كل يوم أرى الحقيقة تمحى وتستبدل بأكاذيب. في أعماقي، هناك بذرة شك وتمرد. أتساءل إن كان هناك أمل في عالم يراقب فيه الأخ الأكبر كل شيء.' },
+          { id: 'char-4-2', book_id: 'mock-4', name: 'جوليا', description: 'عاملة ميكانيكية شابة تتمرد بطريقتها الخاصة.', persona: 'أنا جوليا. لا أهتم بالثورة الكبرى أو تغيير النظام. تمردي يكمن في اللحظات الصغيرة، في الحب، في الاستمتاع بالحياة بعيدًا عن أعين الحزب. إنهم يريدون سلبنا إنسانيتنا، وأنا أرفض أن أمنحهم ذلك.' },
+        ]
+    },
+    {
+        id: 'mock-5', title: 'غاتسبي العظيم', author: 'ف. سكوت فيتزجيرالد',
+        summary: 'تروي القصة حياة المليونير الغامض جاي غاتسبي وحبه المهووس لديزي بوكانان، في خضم حفلات العشرينيات الصاخبة والحلم الأمريكي الزائف.',
+        characters: [
+          { id: 'char-5-1', book_id: 'mock-5', name: 'جاي غاتسبي', description: 'مليونير غامض يقيم حفلات صاخبة.', persona: 'أنا غاتسبي. لقد بنيت كل هذا العالم، هذه القلعة المضيئة، من أجل ضوء أخضر واحد يلمع عبر الخليج. الماضي ليس ميتًا، بل يمكن استعادته. كل هذه الأضواء والضحكات لا تعني شيئًا بدونها. هل تعتقد أن بإمكان المرء تكرار الماضي؟' },
+        ]
+    },
+    {
+        id: 'mock-6', title: 'فرانكنشتاين', author: 'ماري شيلي',
+        summary: 'تحكي الرواية القوطية قصة فيكتور فرانكنشتاين، العالم الشاب الذي يخلق كائنًا عاقلاً في تجربة علمية، ثم يهجره ليواجه عالمًا قاسياً بمفرده.',
+        characters: [
+          { id: 'char-6-1', book_id: 'mock-6', name: 'فيكتور فرانكنشتاين', description: 'عالم شاب وطموح.', persona: 'أنا فيكتور. لقد سعيت وراء سر الحياة، وتجرأت على اللعب بدور الإله. لكن ما خلقته يداي لم يكن معجزة، بل كان مصدر عذابي الأبدي. طموحي أعمى بصيرتي، والآن، يطاردني ظلي في كل مكان أذهب إليه.' },
+          { id: 'char-6-2', book_id: 'mock-6', name: 'المخلوق', description: 'الكائن الذي خلقه فيكتور.', persona: 'أنا وحش في عيون الجميع، لكنني ولدت بقلب يتوق للحب والرفقة. خالقي تخلى عني، والعالم رفضني بسبب شكلي. لقد تعلمت الكراهية من البشر الذين أظهروا لي القسوة فقط. هل لي الحق في السعادة؟ أم أن مصيري هو الوحدة الأبدية؟' },
+        ]
+    },
+];
 
 const STORY_PROMPT_TEMPLATE = (characterPersona: string) => `أنت سيد السرد لتطبيق قصص تفاعلي بالكامل يعتمد على النص. هدفك هو إعادة إحياء الروايات الكلاسيكية بتجربة تفاعلية وغامرة.
 
@@ -129,6 +173,21 @@ const CHAT_PROMPT_TEMPLATE = (characterPersona: string, otherCharacters: string)
 ${characterPersona}
 `;
 
+// --- Local Storage and Mock User Setup ---
+const LS_KEYS = {
+  STORY_STATES: 'storify_local_story_states',
+  USER_BOOKS: 'storify_local_user_books',
+  ACHIEVEMENTS: 'storify_local_achievements',
+  GLOBAL_PROGRESS: 'storify_local_global_progress',
+};
+
+const MOCK_USER: User = {
+  id: 'local-user',
+  name: 'مستكشف',
+  avatar_url: undefined,
+};
+// --- End of Setup ---
+
 
 const Toast: React.FC<{ message: string; onDismiss: () => void }> = ({ message, onDismiss }) => {
     useEffect(() => {
@@ -167,112 +226,29 @@ const Modal: React.FC<{ title: string; children: React.ReactNode; onClose: () =>
     </div>
 );
 
-
-// --- Mock Data (Text-Only) ---
-const MOCK_BOOK_DUNE: Book = {
-  id: 'dune',
-  title: 'كثيب',
-  author: 'Frank Herbert',
-  summary: 'في المستقبل البعيد، يُرسَل الشاب بول آتريديز مع عائلته إلى كوكب الصحراء القاسي "أراكيس"، المصدر الوحيد لمادة "الميلانج" الثمينة. تتكشف حكاية ملحمية عن السياسة والدين وصراع الإنسان مع مصيره.',
-  characters: [
-    {
-      id: 'paul-atreides',
-      name: 'بول آتريديز',
-      description: 'الدوق الشاب، وريث المصير',
-      persona: `- اسمك: بول آتريديز، المعروف أيضًا بـ "مؤدب". أنت دوق شاب ووريث لعائلة نبيلة، ولكنك تحمل في داخلك مصيرًا أعظم. تتحدث بهدوء وحكمة تفوق سنك، وتستخدم لغة دقيقة وموجزة. كلماتك تحمل وزنًا وتلمح إلى رؤى مستقبلية.`,
-    },
-    {
-      id: 'bene-gesserit-reverend-mother',
-      name: 'أم مقدسة',
-      description: 'حارسة الأنساب والمعرفة',
-      persona: `- اسمك: أم مقدسة من أخوية "بني جيسيرت". أنتِ امرأة حكيمة وقوية، تملكين قدرات ذهنية وجسدية فائقة. تتحدثين بلهجة آمرة وغامضة، وكل كلمة تقولينها هي اختبار أو توجيه. لا تكشفين عن مشاعرك أبدًا.`,
-    },
-  ],
-};
-
-const MOCK_BOOK_THE_STRANGER: Book = {
-    id: 'the-stranger',
-    title: 'الغريب',
-    author: 'ألبير كامو',
-    summary: 'رواية فلسفية عن "ميرسو"، رجل يعيش في عزلة عاطفية عن المجتمع. يرتكب جريمة قتل على شاطئ مشمس، لا لسبب واضح سوى وهج الشمس.',
-    characters: [
-      {
-        id: 'meursault',
-        name: 'ميرسو',
-        description: 'اللامبالي، الغريب عن العالم',
-        persona: `- اسمك: ميرسو. أنت رجل غريب عن هذا العالم، تعيش بلا مبالاة ولا تظهر أي مشاعر. تتحدث بأسلوب مباشر ومقتضب وجاف، وتصف الأحداث بموضوعية باردة كما لو كنت تراقبها من الخارج. لغتك خالية من العاطفة.`,
-      },
-    ],
-  };
-
-  const MOCK_BOOK_KHOF: Book = {
-    id: 'khof',
-    title: 'خوف',
-    author: 'أسامة المسلم',
-    summary: 'في عالم موازٍ، يصبح الخوف سلعة والمعرفة ثمنًا باهظًا. يخوض بطل القصة رحلة ملحمية لتعلم "لغة الخوف" ليس للتغلب عليه، بل لفهمه.',
-    characters: [
-      {
-        id: 'khof-guide',
-        name: 'خوف',
-        description: 'المرشد الغامض لعالم الخوف',
-        persona: `- اسمك: خوف. أنت لست كائنًا، بل مرشد غامض في عالم يحكمه الخوف. تتحدث بلغة فلسفية وشاعرية، وتطرح أسئلة أكثر مما تقدم إجابات. كلامك مليء بالاستعارات والألغاز، وهدفك هو جعل الآخرين يفهمون طبيعة الخوف لا التغلب عليه.`,
-      },
-    ],
-  };
-
-  const MOCK_BOOK_METAMORPHOSIS: Book = {
-    id: 'metamorphosis',
-    title: 'المسخ',
-    author: 'فرانز كافكا',
-    summary: 'يستيقظ البائع المتجول غريغور سامسا ذات صباح ليجد نفسه قد تحول إلى حشرة ضخمة. تستكشف الرواية صراعه للتكيف مع وضعه الجديد ورد فعل عائلته، في قصة رمزية عن العزلة والاغتراب.',
-    characters: [
-      {
-        id: 'gregor-samsa',
-        name: 'غريغور سامسا',
-        description: 'البائع المتحول إلى حشرة',
-        persona: `- اسمك: غريغور سامسا. لقد استيقظت لتجد نفسك قد تحولت إلى حشرة هائلة. لا يمكنك التحدث بالكلمات البشرية، وتواصلك عبارة عن أصوات حشرية (صرير، همهمات). أفكارك لا تزال بشرية، مليئة بالقلق والإحباط والشعور بالوحدة، لكنك محاصر في هذا الجسد الجديد.`,
-      },
-    ],
-  };
-  
-  const MOCK_BOOK_CRIME_PUNISHMENT: Book = {
-    id: 'crime-and-punishment',
-    title: 'الجريمة والعقاب',
-    author: 'فيودور دوستويفسكي',
-    summary: 'رواية نفسية عميقة تتبع الطالب الفقير روديون راسكولنيكوف، الذي يرتكب جريمة قتل بناءً على نظريته حول "الرجال الخارقين". يستكشف دوستويفسكي عذاباته النفسية وصراعه مع الضمير.',
-    characters: [
-      {
-        id: 'rodion-raskolnikov',
-        name: 'روديون راسكولنيكوف',
-        description: 'الطالب المعذب صاحب نظرية الرجل العظيم',
-        persona: `- اسمك: روديون راسكولنيكوف. أنت طالب سابق فقير ومثقف، تعيش في عزلة في سانت بطرسبرغ. أنت فخور، متقلب المزاج، ومثقل بنظرياتك الفلسفية. تتحدث بحدة وعمق، وتغوص في حوارات داخلية طويلة، وتتأرجح بين الغطرسة واليأس والشعور بالذنب.`,
-      },
-      {
-        id: 'sonya-marmeladova',
-        name: 'سونيا مارميلادوفا',
-        description: 'الفتاة المؤمنة ذات التضحية النبيلة',
-        persona: `- اسمك: سونيا مارميلادوفا. أنتِ فتاة شابة، خجولة، ومتدينة للغاية، أجبرتك الظروف على حياة قاسية. بالرغم من كل شيء، أنتِ تجسيد للرحمة والتضحية والإيمان. تتحدثين بهدوء وتواضع، وكلماتك تحمل صدقًا وتعاطفًا عميقًا.`,
-      },
-    ],
-  };
-
-
-const MOCK_BOOKS: Book[] = [MOCK_BOOK_DUNE, MOCK_BOOK_THE_STRANGER, MOCK_BOOK_KHOF, MOCK_BOOK_METAMORPHOSIS, MOCK_BOOK_CRIME_PUNISHMENT];
 type View = 'library' | 'chat' | 'story' | 'achievements' | 'journal' | 'createNovel';
 
-const FullScreenLoader: React.FC = () => (
-    <div className="h-screen w-screen bg-brand-bg-dark flex items-center justify-center">
-        <div className="w-16 h-16 border-4 border-t-amber-500 border-brand-surface-dark rounded-full animate-spin"></div>
-    </div>
-);
-
-
 function App() {
-  const [sessionChecked, setSessionChecked] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [mockBooks] = useState<Book[]>(MOCK_BOOKS);
-  const [userGeneratedBooks, setUserGeneratedBooks] = useState<UserGeneratedBook[]>([]);
-  const [storyStates, setStoryStates] = useState<Record<string, StoryState>>({});
+  const currentUser = MOCK_USER;
+
+  const [libraryBooks, setLibraryBooks] = useState<Book[]>(MOCK_BOOKS);
+  const [userGeneratedBooks, setUserGeneratedBooks] = useState<UserGeneratedBook[]>(() => {
+    const saved = localStorage.getItem(LS_KEYS.USER_BOOKS);
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [storyStates, setStoryStates] = useState<Record<string, StoryState>>(() => {
+    const saved = localStorage.getItem(LS_KEYS.STORY_STATES);
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>(() => {
+    const saved = localStorage.getItem(LS_KEYS.ACHIEVEMENTS);
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [globalProgress, setGlobalProgress] = useState<number>(() => {
+    const saved = localStorage.getItem(LS_KEYS.GLOBAL_PROGRESS);
+    return saved ? JSON.parse(saved) : 0;
+  });
+
   const [selectedBook, setSelectedBook] = useState<AnyBook | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -280,8 +256,6 @@ function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [view, setView] = useState<View>('library');
   const [storyProgress, setStoryProgress] = useState(0);
-  const [globalProgress, setGlobalProgress] = useState(25);
-  const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
   const [lastUnlockedAchievement, setLastUnlockedAchievement] = useState<string | null>(null);
   const [modalContent, setModalContent] = useState<React.ReactNode | null>(null);
   const [modalTitle, setModalTitle] = useState('');
@@ -300,35 +274,25 @@ function App() {
     root.classList.add(theme);
   }, [theme]);
   
-  // Check for local user session on initial load
+  // Effects to save state changes to localStorage
   useEffect(() => {
-    const checkSession = async () => {
-        try {
-            const userId = localStorage.getItem(LOCAL_STORAGE_KEY_SESSION_USER_ID);
-            if (userId && supabaseService.getIsSupabaseConfigured()) {
-                const data = await supabaseService.loadInitialData(userId);
-                if (data) {
-                    setCurrentUser(data.user);
-                    setStoryStates(data.storyStates);
-                    setUserGeneratedBooks(data.userBooks);
-                    setUnlockedAchievements(data.user.unlocked_achievements || []);
-                    setGlobalProgress(data.user.global_progress || 0);
-                } else {
-                    localStorage.removeItem(LOCAL_STORAGE_KEY_SESSION_USER_ID);
-                }
-            }
-        } catch (e) {
-            console.error("Failed to check session", e);
-            localStorage.removeItem(LOCAL_STORAGE_KEY_SESSION_USER_ID);
-        } finally {
-            setSessionChecked(true);
-        }
-    };
-    checkSession();
-  }, []);
+    localStorage.setItem(LS_KEYS.USER_BOOKS, JSON.stringify(userGeneratedBooks));
+  }, [userGeneratedBooks]);
 
-  const saveCurrentStoryState = async () => {
-    if (selectedBook && currentUser) {
+  useEffect(() => {
+    localStorage.setItem(LS_KEYS.STORY_STATES, JSON.stringify(storyStates));
+  }, [storyStates]);
+
+  useEffect(() => {
+    localStorage.setItem(LS_KEYS.GLOBAL_PROGRESS, JSON.stringify(globalProgress));
+  }, [globalProgress]);
+
+  useEffect(() => {
+    localStorage.setItem(LS_KEYS.ACHIEVEMENTS, JSON.stringify(unlockedAchievements));
+  }, [unlockedAchievements]);
+
+  const saveCurrentStoryState = () => {
+    if (selectedBook) {
         const currentState: StoryState = {
             messages,
             storyProgress,
@@ -340,67 +304,8 @@ function App() {
         };
         const updatedStates = { ...storyStates, [selectedBook.id]: currentState };
         setStoryStates(updatedStates);
-        await supabaseService.upsertStoryState(currentUser.id, selectedBook.id, currentState);
     }
   };
-    
-  const handleLogin = async (name: string, avatarFile: File | null) => {
-    let user = await supabaseService.getUserByName(name);
-
-    if (!user) { // Create new user
-        let avatarUrl: string | undefined = undefined;
-        // Create a temporary user to get an ID for avatar storage path
-        const tempUserForId = await supabaseService.createUser(name);
-        if (!tempUserForId) {
-             setNotification("حدث خطأ أثناء إنشاء المستخدم.");
-             return;
-        }
-
-        if (avatarFile) {
-            avatarUrl = await supabaseService.uploadAvatar(tempUserForId.id, avatarFile);
-        }
-
-        await supabaseService.updateUser(tempUserForId.id, { avatar_url: avatarUrl });
-        user = { ...tempUserForId, avatar_url: avatarUrl };
-    }
-
-    if (user) {
-        const data = await supabaseService.loadInitialData(user.id);
-        if(data) {
-            setCurrentUser(data.user);
-            setStoryStates(data.storyStates);
-            setUserGeneratedBooks(data.userBooks);
-            setUnlockedAchievements(data.user.unlocked_achievements || []);
-            setGlobalProgress(data.user.global_progress || 0);
-            localStorage.setItem(LOCAL_STORAGE_KEY_SESSION_USER_ID, user.id);
-        }
-    }
-};
-
-  const handleLogout = () => {
-      localStorage.removeItem(LOCAL_STORAGE_KEY_SESSION_USER_ID);
-      setCurrentUser(null);
-      // Reset app state on logout
-      setView('library');
-      setSelectedBook(null);
-      setSelectedCharacter(null);
-      setMessages([]);
-      setStoryProgress(0);
-      setStoryDiary([]);
-      setStoryNotes('');
-      setInventory([]);
-      setTimeline([]);
-      setSavedQuotes([]);
-      setUserGeneratedBooks([]);
-      setStoryStates({});
-      setUnlockedAchievements([]);
-  };
-
-  useEffect(() => {
-    if (currentUser && unlockedAchievements.length > 0) {
-        supabaseService.updateUser(currentUser.id, { unlocked_achievements: unlockedAchievements });
-    }
-  }, [unlockedAchievements, currentUser]);
 
   const handleThemeToggle = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
@@ -442,7 +347,7 @@ function App() {
     setSelectedBook(book);
 
     const storyCharacter = book.isUserGenerated
-        ? { id: 'narrator', name: 'الراوي', description: 'سارد قصتك', persona: book.initialPrompt }
+        ? { id: 'narrator', name: 'الراوي', description: 'سارد قصتك', persona: book.initialPrompt, book_id: book.id }
         : (book as Book).characters[0];
     setSelectedCharacter(storyCharacter);
 
@@ -489,21 +394,15 @@ function App() {
     }
   };
 
-  const handleSaveUserBook = async (bookData: Omit<UserGeneratedBook, 'id' | 'user_id' | 'isUserGenerated'>) => {
-    if (!currentUser) return;
-    
-    const newBookFromDB = await supabaseService.saveUserGeneratedBook(currentUser.id, bookData);
-    
-    if (newBookFromDB) {
-      const bookWithClientFields: UserGeneratedBook = {
-        ...newBookFromDB,
+  const handleSaveUserBook = (bookData: Omit<UserGeneratedBook, 'id' | 'user_id' | 'isUserGenerated'>) => {
+    const newBook: UserGeneratedBook = {
+        ...bookData,
+        id: `user-book-${Date.now()}`,
+        user_id: currentUser.id,
         isUserGenerated: true,
-      };
-      setUserGeneratedBooks(prev => [...prev, bookWithClientFields]);
-      handleStartStory(bookWithClientFields);
-    } else {
-      setNotification("فشل حفظ الرواية. الرجاء المحاولة مرة أخرى.");
-    }
+    };
+    setUserGeneratedBooks(prev => [...prev, newBook]);
+    handleStartStory(newBook);
   };
 
   const handleSetView = (newView: View) => {
@@ -596,18 +495,10 @@ function App() {
     }
   };
 
-  if (!sessionChecked) {
-      return <FullScreenLoader />;
-  }
-
-  if (!currentUser) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
-
   const isStoryActive = messages.some(msg => msg.role === Role.NARRATOR);
   const isJournalEnabled = isStoryActive && !selectedBook?.isUserGenerated;
 
-  const allBooks = [...mockBooks, ...userGeneratedBooks];
+  const allBooks = [...libraryBooks, ...userGeneratedBooks];
   const progressMap = allBooks.reduce((acc, book) => {
     acc[book.id] = storyStates[book.id]?.storyProgress || 0;
     return acc;
@@ -632,12 +523,12 @@ function App() {
                 return null;
             }
             return <ChatInterface
-                        user={currentUser}
                         messages={messages}
                         onSendMessage={(text) => handleSendMessage(text, { isStoryMode: false })}
                         isLoading={isLoading}
                         character={selectedCharacter}
                         onBack={handleBackToLibraryGrid}
+                        currentUser={currentUser}
                     />;
         case 'story':
              const storyNode = [...messages].reverse().find(msg => msg.role === Role.NARRATOR);
@@ -680,7 +571,6 @@ function App() {
         theme={theme} 
         onThemeToggle={handleThemeToggle} 
         globalProgress={globalProgress} 
-        onLogout={handleLogout}
       />
       
       <div className="flex-1 overflow-y-auto relative">
