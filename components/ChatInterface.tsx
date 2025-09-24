@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Message, Role, Character, Interruption } from '../types';
+import { Message, Role, Character, Interruption, User } from '../types';
 import { Typewriter } from './Typewriter';
 
 const sendSound = new Audio('data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAACAA==');
 sendSound.volume = 0.5;
 
 interface ChatInterfaceProps {
+  user: User;
   messages: Message[];
   onSendMessage: (text: string) => void;
   isLoading: boolean;
@@ -20,7 +21,7 @@ const InterruptionBubble: React.FC<{ interruption: Interruption }> = ({ interrup
     </div>
 );
 
-const ChatBubble: React.FC<{ message: Message, isLastMessage: boolean, isLoading: boolean, character: Character }> = ({ message, isLastMessage, isLoading, character }) => {
+const ChatBubble: React.FC<{ message: Message, isLastMessage: boolean, isLoading: boolean, character: Character, user: User }> = ({ message, isLastMessage, isLoading, character, user }) => {
   const isUser = message.role === Role.USER;
   const isSystem = message.role === Role.SYSTEM;
   const isCharacter = message.role === Role.CHARACTER;
@@ -35,7 +36,15 @@ const ChatBubble: React.FC<{ message: Message, isLastMessage: boolean, isLoading
 
   return (
     <div className={`flex items-end gap-3 my-3 animate-fade-in-up ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-       {!isUser && (
+       {isUser ? (
+        <div className="w-9 h-9 rounded-full bg-brand-surface-dark border-2 border-white/20 flex items-center justify-center overflow-hidden self-start flex-shrink-0">
+            {user.avatar_url ? (
+                <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+                <span className="font-bold text-brand-text-medium">{user.name.charAt(0).toUpperCase()}</span>
+            )}
+        </div>
+       ) : (
         <div className="w-9 h-9 rounded-full bg-gradient-bronze-warm flex items-center justify-center font-bold text-white self-start flex-shrink-0">
           {character.name.charAt(0)}
         </div>
@@ -56,7 +65,7 @@ const ChatBubble: React.FC<{ message: Message, isLastMessage: boolean, isLoading
   );
 };
 
-export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, isLoading, character, onBack }) => {
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, messages, onSendMessage, isLoading, character, onBack }) => {
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -102,6 +111,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMe
                     isLastMessage={isLastMessage} 
                     isLoading={isLoading}
                     character={character}
+                    user={user}
                     />
                 )
                 })}

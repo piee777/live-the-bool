@@ -1,36 +1,13 @@
-const CACHE_NAME = 'storify-cache-v1';
+const CACHE_NAME = 'storify-cache-v8';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/index.tsx',
-  '/App.tsx',
-  '/types.ts',
-  '/services/geminiService.ts',
-  '/services/supabaseService.ts',
-  '/components/AddNovel.tsx',
-  '/components/Achievements.tsx',
-  '/components/BookDetails.tsx',
-  '/components/BottomNavBar.tsx',
-  '/components/ChatInterface.tsx',
-  '/components/JournalView.tsx',
-  '/components/LoginScreen.tsx',
-  '/components/StoryView.tsx',
-  '/components/ThemeToggle.tsx',
-  '/components/TopHeader.tsx',
-  '/components/Typewriter.tsx',
-  '/components/UserStoryView.tsx',
-  'https://cdn.tailwindcss.com',
-  'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap',
-  'https://unpkg.com/systemjs@6.15.1/dist/s.min.js',
-  'https://unpkg.com/systemjs-plugin-babel@latest/plugin-babel.js',
-  'https://unpkg.com/systemjs-plugin-babel@latest/systemjs-babel-browser.js',
-  'https://esm.sh/react@18.3.1',
-  'https://esm.sh/react-dom@18.3.1/client',
-  'https://esm.sh/@supabase/supabase-js@2.45.0',
   '/manifest.webmanifest',
   '/pwa/icons/icon-192.svg',
   '/pwa/icons/icon-512.svg',
-  '/pwa/icons/maskable-icon.svg'
+  '/pwa/icons/maskable-icon.svg',
+  'https://cdn.tailwindcss.com',
+  'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap'
 ];
 
 self.addEventListener('install', (event) => {
@@ -70,6 +47,15 @@ self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') {
         return;
     }
+
+    // For navigation requests, use a network-first strategy.
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request).catch(() => caches.match('/index.html'))
+        );
+        return;
+    }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {

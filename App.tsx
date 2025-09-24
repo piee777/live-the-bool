@@ -632,6 +632,7 @@ function App() {
                 return null;
             }
             return <ChatInterface
+                        user={currentUser}
                         messages={messages}
                         onSendMessage={(text) => handleSendMessage(text, { isStoryMode: false })}
                         isLoading={isLoading}

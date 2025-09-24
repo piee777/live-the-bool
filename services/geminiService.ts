@@ -19,7 +19,11 @@ export const getCharacterResponse = async (
 
             if (!apiResponse.ok) {
                 const errorData = await apiResponse.json().catch(() => ({}));
-                throw new Error(errorData.error || `Server responded with status ${apiResponse.status}`);
+                let fullError = errorData.error || `Server responded with status ${apiResponse.status}`;
+                if (errorData.details) {
+                    fullError += ` - التفاصيل: ${errorData.details}`;
+                }
+                throw new Error(fullError);
             }
 
             const data = await apiResponse.json();
@@ -154,10 +158,21 @@ export const getCharacterResponse = async (
                 await new Promise(resolve => setTimeout(resolve, delay));
                 delay *= 2; // Exponential backoff
             } else {
+                const errorMessage = error instanceof Error ? error.message : "حدث خطأ غير متوقع.";
                 console.error(`Error getting response from Gemini API after ${attempt + 1} attempts:`, error);
+                
+                let userFriendlyMessage = `حدث خطأ في الاتصال بالخادم: ${errorMessage}`;
+                
+                // Add a specific hint for the most common issue.
+                if (errorMessage.includes("API_KEY")) {
+                    userFriendlyMessage = `خطأ في الإعدادات: لم يتم العثور على مفتاح Gemini API.
+                    
+                    **الحل:** يرجى الذهاب إلى إعدادات موقعك في Netlify، ثم قسم "Build & deploy" -> "Environment"، وأضف متغيرًا جديدًا باسم \`API_KEY\` وقيمته هي مفتاح Gemini API الخاص بك.`;
+                }
+
                 return {
                     role: Role.SYSTEM,
-                    content: "عذرًا، حدث خطأ أثناء محاولة التواصل. قد يكون الخادم مشغولاً جدًا. يرجى المحاولة مرة أخرى لاحقًا.",
+                    content: userFriendlyMessage,
                 };
             }
         }
