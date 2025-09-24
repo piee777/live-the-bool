@@ -67,30 +67,6 @@
         }
       }
     </script>
-    
-    <!-- SystemJS for client-side module loading and Babel for TSX transpilation -->
-    <script src="https://unpkg.com/systemjs@6.15.1/dist/s.min.js"></script>
-    <script src="https://unpkg.com/systemjs-plugin-babel@latest/plugin-babel.js"></script>
-    <script src="https://unpkg.com/systemjs-plugin-babel@latest/systemjs-babel-browser.js"></script>
-
-    <script type="systemjs-config">
-    {
-        "map": {
-            "react": "https://esm.sh/react@18.3.1",
-            "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
-            "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.45.0",
-            "plugin-babel": "https://unpkg.com/systemjs-plugin-babel@latest/plugin-babel.js",
-            "systemjs-babel-build": "https://unpkg.com/systemjs-plugin-babel@latest/systemjs-babel-browser.js"
-        },
-        "meta": {
-            "./*.tsx": { "loader": "plugin-babel" },
-            "./*.ts": { "loader": "plugin-babel" },
-            "./components/*.tsx": { "loader": "plugin-babel" },
-            "./services/*.ts": { "loader": "plugin-babel" }
-        },
-        "transpiler": "plugin-babel"
-    }
-    </script>
 <script type="importmap">
 {
   "imports": {
@@ -106,10 +82,8 @@
 </head>
   <body>
     <div id="root"></div>
-    <!-- Load the app entry point via SystemJS, which will transpile it -->
-    <script type="systemjs-import">
-        System.import('./index.tsx');
-    </script>
+    <!-- Load the app entry point via Vite -->
+    <script type="module" src="/index.tsx"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>
