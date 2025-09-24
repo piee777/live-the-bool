@@ -332,16 +332,17 @@ function App() {
   const handleCharacterSelect = (character: Character) => {
     if (character.id !== selectedCharacter?.id || view !== 'chat') {
       setSelectedCharacter(character);
-      setMessages([
+      const initialMessages = [
         {
           role: Role.CHARACTER,
           content: `مرحباً بك، أنا ${character.name}. بماذا تفكر؟`,
         },
-      ]);
+      ];
+      setMessages(initialMessages);
       setView('chat');
     }
   };
-
+  
   const handleStartStory = (book: AnyBook) => {
     const savedState = storyStates[book.id];
     setSelectedBook(book);
@@ -368,6 +369,7 @@ function App() {
         setInventory([]);
         setTimeline([]);
         setSavedQuotes([]);
+        setView('story');
         handleSendMessage("ابدأ القصة.", {
             characterOverride: storyCharacter,
             isStoryMode: true,
@@ -422,11 +424,15 @@ function App() {
 
     const newUserMessage: Message = { role: Role.USER, content: text };
     
-    if (isStoryMode) {
+    // Only add user choice to timeline if it's not the initial "start" message
+    if (isStoryMode && text !== "ابدأ القصة.") {
       setTimeline(prev => [...prev, { type: 'choice', content: text }]);
     }
     
-    const updatedMessages = [...messages, newUserMessage];
+    const updatedMessages = (messages.length === 0 && isStoryMode) 
+        ? [newUserMessage] 
+        : [...messages, newUserMessage];
+
     setMessages(updatedMessages);
     setIsLoading(true);
 
@@ -451,47 +457,55 @@ function App() {
         }
         systemInstruction = CHAT_PROMPT_TEMPLATE(personaDetails, otherCharacters);
     }
-
-    const responseMessage = await getCharacterResponse(systemInstruction, updatedMessages);
     
-    if (responseMessage.progressIncrement) {
-      setStoryProgress(prev => Math.min(prev + responseMessage.progressIncrement!, 100));
-    }
-    
-    if (responseMessage.role === Role.NARRATOR) {
-        setTimeline(prev => [...prev, { type: 'narration', content: responseMessage.content }]);
-    }
+    try {
+      const responseMessage = await getCharacterResponse(systemInstruction, updatedMessages);
+      
+      if (responseMessage.progressIncrement) {
+        setStoryProgress(prev => Math.min(prev + responseMessage.progressIncrement!, 100));
+      }
+      
+      if (responseMessage.role === Role.NARRATOR) {
+          setTimeline(prev => [{ type: 'narration', content: responseMessage.content }, ...prev]);
+      }
+  
+      if (responseMessage.secretAchievement && !unlockedAchievements.includes(responseMessage.secretAchievement)) {
+          setUnlockedAchievements(prev => [...prev, responseMessage.secretAchievement!]);
+          setLastUnlockedAchievement(responseMessage.secretAchievement);
+      }
+  
+      if (responseMessage.diaryEntry) {
+          setStoryDiary(prev => [...prev, responseMessage.diaryEntry!]);
+      }
+      
+      if (responseMessage.impact) {
+        setLastImpact(responseMessage.impact);
+      }
+  
+      if (responseMessage.inventoryAdd) {
+        setInventory(prev => [...new Set([...prev, responseMessage.inventoryAdd!])]);
+      }
+      if (responseMessage.inventoryRemove) {
+          setInventory(prev => prev.filter(item => item !== responseMessage.inventoryRemove));
+      }
+  
+      setMessages((prev) => [...prev, responseMessage]);
+       
+      if (responseMessage.role === Role.NARRATOR) {
+          setView('story');
+      } else if (!isStoryMode) {
+          setView('chat');
+      }
 
-    if (responseMessage.secretAchievement && !unlockedAchievements.includes(responseMessage.secretAchievement)) {
-        setUnlockedAchievements(prev => [...prev, responseMessage.secretAchievement!]);
-        setLastUnlockedAchievement(responseMessage.secretAchievement);
-    }
-
-    if (responseMessage.diaryEntry) {
-        setStoryDiary(prev => [...prev, responseMessage.diaryEntry!]);
-    }
-    
-    if (responseMessage.impact) {
-      setLastImpact(responseMessage.impact);
-    }
-
-    if (responseMessage.inventoryAdd) {
-      setInventory(prev => [...new Set([...prev, responseMessage.inventoryAdd!])]);
-    }
-    if (responseMessage.inventoryRemove) {
-        setInventory(prev => prev.filter(item => item !== responseMessage.inventoryRemove));
-    }
-
-    setMessages((prev) => [...prev, responseMessage]);
-    setIsLoading(false);
-    
-    if (responseMessage.role === Role.NARRATOR) {
-        setView('story');
-    } else if (!isStoryMode) {
-        setView('chat');
+    } catch (error) {
+        console.error("An unexpected error occurred:", error);
+        const errorMessage: Message = { role: Role.SYSTEM, content: "حدث خطأ غير متوقع." };
+        setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
     }
   };
-
+  
   const isStoryActive = messages.some(msg => msg.role === Role.NARRATOR);
   const isJournalEnabled = isStoryActive && !selectedBook?.isUserGenerated;
 
@@ -527,12 +541,37 @@ function App() {
                         onBack={handleBackToLibraryGrid}
                         currentUser={currentUser}
                     />;
-        case 'story':
-             const storyNode = [...messages].reverse().find(msg => msg.role === Role.NARRATOR);
-             if (!storyNode || !selectedBook) {
-                setView('library'); 
+        case 'story': {
+             if (!selectedBook) {
+                setView('library');
                 return null;
-            }
+             }
+             const storyNode = [...messages].reverse().find(msg => msg.role === Role.NARRATOR);
+             const lastMessage = messages[messages.length - 1];
+
+             if (!storyNode) {
+                const placeholderMessage: Message = {
+                    role: Role.NARRATOR,
+                    content: isLoading ? "لحظات ونبدأ رحلتك..." : "حدث خطأ ما. حاول العودة للمكتبة والبدء من جديد.",
+                    choices: [],
+                };
+
+                if (lastMessage && lastMessage.role === Role.SYSTEM) {
+                    placeholderMessage.content = lastMessage.content;
+                }
+                
+                return <StoryView
+                    message={placeholderMessage}
+                    progress={storyProgress}
+                    onChoiceSelect={() => {}}
+                    isLoading={isLoading}
+                    onShowDiary={handleShowDiary}
+                    onOpenInventory={() => setIsInventoryOpen(true)}
+                    inventoryCount={inventory.length}
+                    onSaveQuote={() => {}}
+                />;
+             }
+
             return <StoryView 
                 message={storyNode}
                 progress={storyProgress}
@@ -543,6 +582,7 @@ function App() {
                 inventoryCount={inventory.length}
                 onSaveQuote={handleSaveQuote}
             />
+        }
         case 'achievements':
             return <Achievements unlockedAchievements={unlockedAchievements} />;
         case 'journal':

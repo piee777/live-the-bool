@@ -1,122 +1,107 @@
-import { Message, Role, StoryChoice, DiaryEntry, Interruption } from '../types';
+import { GoogleGenAI } from '@google/genai';
+import { Message, Role } from '../types';
 
-// This function parses the raw text from the AI and constructs a structured Message object.
-const parseAIResponse = (text: string): Message => {
-    let content = text;
+// As per instructions, process.env.API_KEY is assumed to be pre-configured and available.
+// The AI client is initialized once when the module is loaded.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+const parseGeminiResponse = (responseText: string, isStoryMode: boolean): Message => {
+  const message: Message = {
+    role: isStoryMode ? Role.NARRATOR : Role.CHARACTER,
+    content: responseText, 
+  };
+
+  if (isStoryMode) {
+    const narrationMatch = responseText.match(/\[NARRATION\]([\s\S]*?)(?=\[PROGRESS:|\[CHOICE\]|$)/);
+    message.content = narrationMatch ? narrationMatch[1].trim() : "حدث خطأ في السرد. حاول مرة أخرى.";
+
+    const progressMatch = responseText.match(/\[PROGRESS:(\d+)\]/);
+    if (progressMatch) message.progressIncrement = parseInt(progressMatch[1], 10);
+
+    const choicesMatch = responseText.match(/\[CHOICE\]([\s\S]*?)(?=\[|$)/);
+    if (choicesMatch) {
+      message.choices = choicesMatch[1].trim().split('\n').map(line => {
+        const parts = line.split('::');
+        return {
+          icon: parts.length > 1 ? parts[0].trim() : undefined,
+          text: (parts.length > 1 ? parts[1] : parts[0]).trim(),
+        };
+      }).filter(c => c.text);
+    }
+
+    const inventoryAddMatch = responseText.match(/\[INVENTORY_ADD:(.+?)\]/);
+    if (inventoryAddMatch) message.inventoryAdd = inventoryAddMatch[1].trim();
     
-    let role = Role.CHARACTER;
-    const narrationMatch = content.match(/\[NARRATION\]([\s\S]*?)(?=\[(?:CHOICE|IMPACT|FLASHBACK|DIARY_ENTRY|SECRET_ACHIEVEMENT|INTERRUPTION|INVENTORY_ADD|INVENTORY_REMOVE|PROGRESS)\]|$)/);
-    if (narrationMatch) {
-        role = Role.NARRATOR;
-        content = narrationMatch[0]; 
+    const inventoryRemoveMatch = responseText.match(/\[INVENTORY_REMOVE:(.+?)\]/);
+    if (inventoryRemoveMatch) message.inventoryRemove = inventoryRemoveMatch[1].trim();
+
+    const impactMatch = responseText.match(/\[IMPACT:(.+?)\]/);
+    if (impactMatch) message.impact = impactMatch[1].trim();
+
+    const flashbackMatch = responseText.match(/\[FLASHBACK\]([\s\S]*?)\[\/FLASHBACK\]/);
+    if (flashbackMatch) message.flashback = flashbackMatch[1].trim();
+
+    const diaryMatch = responseText.match(/\[DIARY_ENTRY:([^:]+):([\s\S]*?)\[\/DIARY_ENTRY\]/);
+    if (diaryMatch) {
+      message.diaryEntry = { character: diaryMatch[1].trim(), content: diaryMatch[2].trim() };
     }
 
-    const extract = (tagName: string, isBlock = false): string | null => {
-        const regex = isBlock
-            ? new RegExp(`\\[${tagName}\\]([\\s\\S]*?)\\[/${tagName}\\]`, 'm')
-            : new RegExp(`\\[${tagName}:([^\\]]+)\\]`, 'm');
-        const match = content.match(regex);
-        if (match && match[1]) {
-            content = content.replace(regex, '').trim();
-            return match[1].trim();
-        }
-        return null;
-    };
-
-    const flashback = extract('FLASHBACK', true);
-    const diaryRaw = extract('DIARY_ENTRY', true);
-    const interruptionRaw = extract('INTERRUPTION', true);
-    const secretAchievement = extract('SECRET_ACHIEVEMENT');
-    const impact = extract('IMPACT');
-    const inventoryAdd = extract('INVENTORY_ADD');
-    const inventoryRemove = extract('INVENTORY_REMOVE');
-    const progressRaw = extract('PROGRESS');
-
-    const choices: StoryChoice[] = [];
-    const choiceBlockMatch = content.match(/\[CHOICE\]\s*([\s\S]*)/);
-    if (choiceBlockMatch) {
-        const choiceLines = choiceBlockMatch[1].trim().split('\n');
-        choiceLines.forEach(line => {
-            const trimmedLine = line.trim();
-            if (!trimmedLine) return;
-            const parts = trimmedLine.split('::');
-            const text = (parts[1] || parts[0]).trim();
-            const icon = parts.length > 1 ? parts[0].trim() : undefined;
-            choices.push({ text, icon });
-        });
-        content = content.replace(choiceBlockMatch[0], '').trim();
-    }
+    const achievementMatch = responseText.match(/\[SECRET_ACHIEVEMENT:(.+?)\]/);
+    if (achievementMatch) message.secretAchievement = achievementMatch[1].trim();
     
-    let displayContent = content.replace(/\[NARRATION\]/, '').trim();
-
-    const message: Message = {
-        content: displayContent,
-        role,
-    };
-
-    if (choices.length > 0) message.choices = choices;
-    if (flashback) message.flashback = flashback;
-    if (secretAchievement) message.secretAchievement = secretAchievement;
-    if (impact) message.impact = impact;
-    if (inventoryAdd) message.inventoryAdd = inventoryAdd;
-    if (inventoryRemove) message.inventoryRemove = inventoryRemove;
-
-    if (progressRaw) {
-      const increment = parseInt(progressRaw, 10);
-      if (!isNaN(increment)) {
-          message.progressIncrement = increment;
-      }
+    const interruptionMatch = responseText.match(/\[INTERRUPTION:([^:]+):([\s\S]*?)\[\/INTERRUPTION\]/);
+    if (interruptionMatch) {
+      message.interruption = { characterName: interruptionMatch[1].trim(), content: interruptionMatch[2].trim() };
     }
 
-    if (diaryRaw) {
-        const [character, diaryContent] = diaryRaw.split(':');
-        if (character && diaryContent) {
-            message.diaryEntry = { character: character.trim(), content: diaryContent.trim() };
-        }
+  } else {
+    const interruptionMatch = responseText.match(/\[INTERRUPTION:([^:]+):([\s\S]*?)\[\/INTERRUPTION\]/);
+    if (interruptionMatch) {
+        message.content = responseText.replace(interruptionMatch[0], '').trim();
+        message.interruption = { characterName: interruptionMatch[1].trim(), content: interruptionMatch[2].trim() };
+    } else {
+        message.content = responseText.trim();
     }
-    if (interruptionRaw) {
-        const [characterName, interruptionContent] = interruptionRaw.split(':');
-        if (characterName && interruptionContent) {
-            message.interruption = { characterName: characterName.trim(), content: interruptionContent.trim() };
-        }
-    }
-    
-    return message;
+  }
+
+  return message;
 };
 
 export const getCharacterResponse = async (
   systemInstruction: string,
   history: Message[]
 ): Promise<Message> => {
+
+  const isStoryMode = systemInstruction.includes('أنت سيد السرد');
+
+  const geminiHistory = history
+    .filter(msg => msg.role === Role.USER || msg.role === Role.CHARACTER || msg.role === Role.NARRATOR)
+    .map(msg => ({
+      role: msg.role === Role.USER ? 'user' : 'model',
+      parts: [{ text: msg.content }],
+    }));
+
   try {
-    const response = await fetch('/.netlify/functions/get-ai-response', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ systemInstruction, history }),
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: geminiHistory,
+        config: {
+            systemInstruction: systemInstruction,
+        }
     });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        const errorData = JSON.parse(errorText || '{}');
-        console.error('Error from AI service:', response.status, errorData);
-        return {
-            role: Role.SYSTEM,
-            content: `حدث خطأ في خدمة الذكاء الاصطناعي: ${errorData.error || response.statusText}`,
-        };
+    const responseText = response.text;
+    if (!responseText) {
+        return { role: Role.SYSTEM, content: "لم يتمكن الذكاء الاصطناعي من إنشاء رد. قد يكون المحتوى غير آمن." };
     }
 
-    const responseText = await response.text();
-    if (!responseText.trim()) {
-        return { role: Role.SYSTEM, content: "تلقت الخدمة ردًا فارغًا. حاول مرة أخرى." };
-    }
+    return parseGeminiResponse(responseText, isStoryMode);
 
-    return parseAIResponse(responseText);
-
-  } catch (error) {
-    console.error('Network or parsing error:', error);
+  } catch (error: any) {
+    console.error("Gemini API Error:", error);
     return {
       role: Role.SYSTEM,
-      content: "لا يمكن الوصول إلى خدمة الذكاء الاصطناعي. يرجى التحقق من اتصالك بالإنترنت.",
+      content: "حدث خطأ أثناء التواصل مع الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.",
     };
   }
 };
