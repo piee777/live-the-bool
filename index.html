@@ -15,7 +15,6 @@
         background-color: #1c1917; /* Dark Charcoal/Umber */
         background-image: radial-gradient(circle at top right, rgba(146, 64, 14, 0.2), transparent 40%),
                           radial-gradient(circle at bottom left, rgba(153, 27, 27, 0.2), transparent 50%);
-        text-shadow: 0 1px 3px rgba(0,0,0,0.4);
       }
       .font-arabic {
         font-family: 'Tajawal', sans-serif;
@@ -34,6 +33,33 @@
       }
       .animate-fade-in-up {
         animation: fade-in-up 0.6s ease-out forwards;
+      }
+
+      /* Dramatic Text Effects */
+      @keyframes shake-effect {
+        10%, 90% { transform: translate3d(-1px, 0, 0); }
+        20%, 80% { transform: translate3d(2px, 0, 0); }
+        30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+        40%, 60% { transform: translate3d(4px, 0, 0); }
+      }
+      .effect-shake {
+        animation: shake-effect 0.82s cubic-bezier(.36,.07,.19,.97) both;
+      }
+      @keyframes intense-glow-effect {
+        0%, 100% { text-shadow: 0 0 10px #fef08a, 0 0 20px #fef08a, 0 0 30px #fcd34d, 0 0 40px #fca5a5; }
+        50% { text-shadow: 0 0 20px #fef08a, 0 0 30px #fcd34d, 0 0 40px #fcd34d, 0 0 50px #ef4444; }
+      }
+      .effect-glow {
+        animation: intense-glow-effect 1.5s ease-in-out infinite alternate;
+      }
+      @keyframes whisper-effect {
+        from { opacity: 0.6; }
+        to { opacity: 0.9; }
+      }
+      .effect-whisper {
+        animation: whisper-effect 2s ease-in-out infinite alternate;
+        opacity: 0.7;
+        color: #a8a29e; /* Muted stone */
       }
     </style>
     <script>

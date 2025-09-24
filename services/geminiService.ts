@@ -12,7 +12,7 @@ const parseGeminiResponse = (responseText: string, isStoryMode: boolean): Messag
   };
 
   if (isStoryMode) {
-    const narrationMatch = responseText.match(/\[NARRATION\]([\s\S]*?)(?=\[PROGRESS:|\[CHOICE\]|$)/);
+    const narrationMatch = responseText.match(/\[NARRATION\]([\s\S]*?)(?=\[PROGRESS:|\[CHOICE\]|\[EFFECT\]|\[RELATIONSHIP_CHANGE\]|$)/);
     message.content = narrationMatch ? narrationMatch[1].trim() : "حدث خطأ في السرد. حاول مرة أخرى.";
 
     const progressMatch = responseText.match(/\[PROGRESS:(\d+)\]/);
@@ -53,6 +53,24 @@ const parseGeminiResponse = (responseText: string, isStoryMode: boolean): Messag
     if (interruptionMatch) {
       message.interruption = { characterName: interruptionMatch[1].trim(), content: interruptionMatch[2].trim() };
     }
+    
+    const effectMatch = responseText.match(/\[EFFECT:(\w+)\]/);
+    if (effectMatch) {
+        const effect = effectMatch[1].trim().toLowerCase();
+        if (effect === 'shake' || effect === 'glow' || effect === 'whisper') {
+          message.effect = effect;
+        }
+    }
+
+    const relationshipMatch = responseText.match(/\[RELATIONSHIP_CHANGE:([^:]+):([^:]+):(-?\d+)\]/);
+    if (relationshipMatch) {
+        message.relationshipChange = {
+            characterName: relationshipMatch[1].trim(),
+            status: relationshipMatch[2].trim(),
+            change: parseInt(relationshipMatch[3], 10),
+        };
+    }
+
 
   } else {
     const interruptionMatch = responseText.match(/\[INTERRUPTION:([^:]+):([\s\S]*?)\[\/INTERRUPTION\]/);
@@ -104,4 +122,25 @@ export const getCharacterResponse = async (
       content: "حدث خطأ أثناء التواصل مع الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.",
     };
   }
+};
+
+export const getConceptExplanation = async (concept: string): Promise<string> => {
+    const systemInstruction = `أنت مساعد خبير في الفلسفة. مهمتك هي شرح المفاهيم الفلسفية المعقدة بلغة عربية بسيطة وواضحة جداً، كما لو كنت تشرحها لشخص لم يسمع بها من قبل. اجعل الشرح موجزًا (٣-٤ جمل) وسهل الفهم.`;
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ role: 'user', parts: [{ text: `اشرح لي مفهوم "${concept}"` }] }],
+            config: {
+                systemInstruction: systemInstruction,
+            }
+        });
+        const responseText = response.text;
+        if (!responseText) {
+            return "لم أتمكن من إيجاد شرح لهذا المفهوم حاليًا.";
+        }
+        return responseText.trim();
+    } catch (error) {
+        console.error("Gemini API Error (Concept Explanation):", error);
+        return "حدث خطأ أثناء محاولة شرح المفهوم. يرجى المحاولة مرة أخرى.";
+    }
 };

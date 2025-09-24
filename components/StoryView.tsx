@@ -11,6 +11,7 @@ interface StoryViewProps {
   onOpenInventory: () => void;
   inventoryCount: number;
   onSaveQuote: (quote: string) => void;
+  onConceptClick: (concept: string) => void;
 }
 
 const Flashback: React.FC<{ content: string }> = ({ content }) => (
@@ -72,15 +73,42 @@ const ChoiceButton: React.FC<{ choice: StoryChoice; onClick: (text: string) => v
     );
 };
 
-export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoading, onChoiceSelect, onShowDiary, onOpenInventory, inventoryCount, onSaveQuote }) => {
+const PHILOSOPHICAL_CONCEPTS = ['العبثية', 'الوجودية', 'العدمية', 'السخرية', 'الغربة', 'الأخ الأكبر', 'المِزَاج'];
+
+const renderContentWithConcepts = (content: string, onClick: (concept: string) => void) => {
+    if (!content) return '';
+    const regex = new RegExp(`\\b(${PHILOSOPHICAL_CONCEPTS.join('|')})\\b`, 'g');
+    
+    const parts = content.split(regex);
+    
+    return parts.map((part, index) => {
+        if (PHILOSOPHICAL_CONCEPTS.includes(part)) {
+            return (
+                <button 
+                    key={index} 
+                    onClick={() => onClick(part)}
+                    className="text-amber-400 font-bold underline decoration-dotted hover:bg-amber-400/10 rounded px-1 transition-colors"
+                >
+                    {part}
+                </button>
+            );
+        }
+        return part;
+    });
+};
+
+
+export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoading, onChoiceSelect, onShowDiary, onOpenInventory, inventoryCount, onSaveQuote, onConceptClick }) => {
   const hasChoices = message.choices && message.choices.length > 0;
-  const [showTypewriter, setShowTypewriter] = useState(false);
+  const [typingComplete, setTypingComplete] = useState(false);
 
   useEffect(() => {
-    setShowTypewriter(false);
-    const timer = setTimeout(() => setShowTypewriter(true), 100);
-    return () => clearTimeout(timer);
+    setTypingComplete(false);
   }, [message.content]);
+
+  const narrationClassName = `text-brand-text-light text-lg italic leading-relaxed font-arabic text-center ${
+    message.effect ? `effect-${message.effect}` : ''
+  }`;
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-end p-4 sm:p-6 overflow-hidden bg-brand-bg-dark">
@@ -101,11 +129,17 @@ export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoadi
                         <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
                     </svg>
                 </button>
-                {showTypewriter ? (
-                    <Typewriter text={message.content} speed={25} className="text-brand-text-light text-lg italic leading-relaxed font-arabic text-center" />
+                {typingComplete ? (
+                    <p className={narrationClassName}>{renderContentWithConcepts(message.content, onConceptClick)}</p>
                 ) : (
-                    <p className="text-brand-text-light text-lg italic leading-relaxed font-arabic text-center">{message.content}</p>
+                    <Typewriter 
+                        text={message.content} 
+                        speed={25} 
+                        className={narrationClassName} 
+                        onComplete={() => setTypingComplete(true)} 
+                    />
                 )}
+
 
                 {message.interruption && <InterruptionDisplay interruption={message.interruption} />}
 

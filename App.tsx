@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Book, Character, Message, Role, DiaryEntry, TimelineEvent, AnyBook, UserGeneratedBook, StoryState, User, LeaderboardUser } from './types';
+import { Book, Character, Message, Role, DiaryEntry, TimelineEvent, AnyBook, UserGeneratedBook, StoryState, User, LeaderboardUser, MeditationEntry, Relationship } from './types';
 import { LibraryScreen } from './components/BookDetails';
 import { ChatInterface } from './components/ChatInterface';
-import { getCharacterResponse } from './services/geminiService';
+import { getCharacterResponse, getConceptExplanation } from './services/geminiService';
 import { BottomNavBar } from './components/BottomNavBar';
 import { Achievements } from './components/Achievements';
 import { StoryView } from './components/StoryView';
@@ -101,6 +101,11 @@ const STORY_PROMPT_TEMPLATE = (characterPersona: string) => `أنت سيد ال�
     *   \`[INVENTORY_REMOVE:مفتاح صدئ]\`
 *   **علامة التأثير:**
     *   \`[IMPACT:سونيا أصبحت تثق بك أكثر.]\`
+*   **علامة التأثير الدرامي:**
+    *   \`[EFFECT:shake|glow|whisper]\` استخدم هذا للتأثير على النص (اهتزاز، توهج، همس).
+*   **علامة تغيير العلاقة:**
+    *   \`[RELATIONSHIP_CHANGE:اسم الشخصية:الحالة الجديدة:مقدار التغيير]\`
+    *   مثال: \`[RELATIONSHIP_CHANGE:سونيا:تثق بك أكثر:+15]\`
 *   **علامات أخرى (استخدمها حسب الحاجة):**
     *   ذكريات الماضي: \`[FLASHBACK]نص[/FLASHBACK]\`
     *   مذكرات الشخصيات: \`[DIARY_ENTRY:شخصية:نص[/DIARY_ENTRY]]\`
@@ -115,6 +120,8 @@ const STORY_PROMPT_TEMPLATE = (characterPersona: string) => `أنت سيد ال�
 \`\`\`
 [NARRATION]
 تتحرك يدك ببطء نحو حزام الحارس، بالكاد تتنفس. أصابعك تلامس حلقة المفاتيح الباردة وتنزعها بهدوء. لقد نجحت! الآن، وأنت تحمل المفاتيح، تلاحظ أن أحدها منقوش عليه رمز غريب. بينما تفكر في معناه، تسمع صوت خطوات تقترب من الممر. الظلام يخفي وجودك، لكن قلبك يخفق بشدة.
+[EFFECT:shake]
+[RELATIONSHIP_CHANGE:الحارس:متشكك:-10]
 [IMPACT:لقد حصلت على مفاتيح الزنزانة.]
 [INVENTORY_ADD:مجموعة مفاتيح صدئة]
 [PROGRESS:5]
@@ -183,6 +190,9 @@ const LS_KEYS = {
   USER_BOOKS: 'storify_local_user_books',
   ACHIEVEMENTS: 'storify_local_achievements',
   GLOBAL_PROGRESS: 'storify_local_global_progress',
+  LAST_LOGIN: 'storify_last_login',
+  ENERGY: 'storify_energy',
+  MEDITATION: 'storify_meditation_entry',
 };
 
 const MOCK_USER: User = {
@@ -234,6 +244,7 @@ type View = 'library' | 'chat' | 'story' | 'achievements' | 'journal' | 'createN
 
 function App() {
   const currentUser = MOCK_USER;
+  const MAX_ENERGY = 5;
 
   const [libraryBooks, setLibraryBooks] = useState<Book[]>(MOCK_BOOKS);
   const [userGeneratedBooks, setUserGeneratedBooks] = useState<UserGeneratedBook[]>(() => {
@@ -251,6 +262,17 @@ function App() {
   const [globalProgress, setGlobalProgress] = useState<number>(() => {
     const saved = localStorage.getItem(LS_KEYS.GLOBAL_PROGRESS);
     return saved ? JSON.parse(saved) : 0;
+  });
+  const [energy, setEnergy] = useState<number>(() => {
+    const saved = localStorage.getItem(LS_KEYS.ENERGY);
+    return saved ? JSON.parse(saved) : MAX_ENERGY;
+  });
+  const [meditationEntry, setMeditationEntry] = useState<MeditationEntry>(() => {
+    const saved = localStorage.getItem(LS_KEYS.MEDITATION);
+    return saved ? JSON.parse(saved) : {
+        question: 'ما هو الشيء الذي تؤمن به بشدة، حتى لو لم يستطع أحد إثباته؟',
+        answer: ''
+    };
   });
 
   const [selectedBook, setSelectedBook] = useState<AnyBook | null>(null);
@@ -271,6 +293,8 @@ function App() {
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [savedQuotes, setSavedQuotes] = useState<string[]>([]);
   const [notification, setNotification] = useState<string | null>(null);
+  const [showDailyQuote, setShowDailyQuote] = useState(false);
+  const [relationships, setRelationships] = useState<Relationship[]>([]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -278,6 +302,17 @@ function App() {
     root.classList.add(theme);
   }, [theme]);
   
+  // Daily login check
+  useEffect(() => {
+    const today = new Date().toDateString();
+    const savedDate = localStorage.getItem(LS_KEYS.LAST_LOGIN);
+    if (savedDate !== today) {
+        setShowDailyQuote(true);
+        setEnergy(MAX_ENERGY);
+        localStorage.setItem(LS_KEYS.LAST_LOGIN, today);
+    }
+  }, []);
+
   // Effects to save state changes to localStorage
   useEffect(() => {
     localStorage.setItem(LS_KEYS.USER_BOOKS, JSON.stringify(userGeneratedBooks));
@@ -294,6 +329,15 @@ function App() {
   useEffect(() => {
     localStorage.setItem(LS_KEYS.ACHIEVEMENTS, JSON.stringify(unlockedAchievements));
   }, [unlockedAchievements]);
+  
+  useEffect(() => {
+    localStorage.setItem(LS_KEYS.ENERGY, JSON.stringify(energy));
+  }, [energy]);
+  
+  useEffect(() => {
+    localStorage.setItem(LS_KEYS.MEDITATION, JSON.stringify(meditationEntry));
+  }, [meditationEntry]);
+
 
   useEffect(() => {
     const alghareebState = storyStates['mock-1'];
@@ -304,6 +348,14 @@ function App() {
     }
   }, [storyStates, unlockedAchievements]);
 
+  const consumeEnergy = () => {
+    if (energy <= 0) {
+        setNotification("نفدت طاقتك. عُد غدًا للمزيد!");
+        return false;
+    }
+    setEnergy(prev => prev - 1);
+    return true;
+  }
 
   const saveCurrentStoryState = () => {
     if (selectedBook) {
@@ -315,6 +367,7 @@ function App() {
             inventory,
             timeline,
             savedQuotes,
+            relationships,
         };
         const updatedStates = { ...storyStates, [selectedBook.id]: currentState };
         setStoryStates(updatedStates);
@@ -340,6 +393,7 @@ function App() {
       setInventory([]);
       setTimeline([]);
       setSavedQuotes([]);
+      setRelationships([]);
       setView('library');
   }
 
@@ -374,6 +428,7 @@ function App() {
         setInventory(savedState.inventory);
         setTimeline(savedState.timeline);
         setSavedQuotes(savedState.savedQuotes);
+        setRelationships(savedState.relationships || []);
         setView('story');
     } else {
         setMessages([]);
@@ -383,6 +438,7 @@ function App() {
         setInventory([]);
         setTimeline([]);
         setSavedQuotes([]);
+        setRelationships([]);
         setView('story');
         handleSendMessage("ابدأ القصة.", {
             characterOverride: storyCharacter,
@@ -401,6 +457,10 @@ function App() {
     setStoryNotes(notes);
   };
   
+  const handleUpdateMeditation = (answer: string) => {
+    setMeditationEntry(prev => ({ ...prev, answer }));
+  };
+
   const handleSaveQuote = (quote: string) => {
     if (!savedQuotes.includes(quote)) {
         setSavedQuotes(prev => [...prev, quote]);
@@ -428,6 +488,17 @@ function App() {
     setView(newView);
   }
 
+  const handleConceptClick = async (concept: string) => {
+    setModalTitle(`شرح مفهوم: ${concept}`);
+    setModalContent(<div className="text-center p-4">جاري البحث عن شرح مبسط...</div>);
+    try {
+        const explanation = await getConceptExplanation(concept);
+        setModalContent(<p className="whitespace-pre-wrap">{explanation}</p>);
+    } catch (error) {
+        setModalContent(<p>حدث خطأ أثناء جلب الشرح.</p>);
+    }
+  };
+
   const handleSendMessage = async (
     text: string,
     options: { characterOverride?: Character; isStoryMode?: boolean; bookForStory?: AnyBook } = {}
@@ -435,6 +506,10 @@ function App() {
     const { characterOverride, isStoryMode = false, bookForStory } = options;
     const characterForAPI = characterOverride || selectedCharacter;
     if (!characterForAPI) return;
+
+    if (isStoryMode) {
+        if (!consumeEnergy()) return;
+    }
 
     const newUserMessage: Message = { role: Role.USER, content: text };
     
@@ -502,6 +577,22 @@ function App() {
       if (responseMessage.inventoryRemove) {
           setInventory(prev => prev.filter(item => item !== responseMessage.inventoryRemove));
       }
+      
+      if (responseMessage.relationshipChange) {
+        const { characterName, status, change } = responseMessage.relationshipChange;
+        setRelationships(prev => {
+            const existingRel = prev.find(r => r.characterName === characterName);
+            if (existingRel) {
+                return prev.map(r => 
+                    r.characterName === characterName
+                        ? { ...r, status: status, level: Math.max(0, Math.min(100, r.level + change)) }
+                        : r
+                );
+            } else {
+                return [...prev, { characterName, status, level: Math.max(0, Math.min(100, 50 + change)) }];
+            }
+        });
+      }
   
       setMessages((prev) => [...prev, responseMessage]);
        
@@ -528,6 +619,13 @@ function App() {
     acc[book.id] = storyStates[book.id]?.storyProgress || 0;
     return acc;
   }, {} as Record<string, number>);
+
+  const userStats = {
+    // FIX: Cast `s` to `StoryState` to resolve TypeScript error where `s` is of type `unknown`.
+    storiesStarted: Object.values(storyStates).filter(s => (s as StoryState).messages.length > 0).length,
+    achievementsUnlocked: unlockedAchievements.length,
+    thinkingProfile: unlockedAchievements.includes("المفكر العبثي") ? 'فيلسوف عميق' : 'مستكشف فضولي',
+  };
 
   const renderContent = () => {
     switch (view) {
@@ -583,6 +681,7 @@ function App() {
                     onOpenInventory={() => setIsInventoryOpen(true)}
                     inventoryCount={inventory.length}
                     onSaveQuote={() => {}}
+                    onConceptClick={handleConceptClick}
                 />;
              }
 
@@ -595,6 +694,7 @@ function App() {
                 onOpenInventory={() => setIsInventoryOpen(true)}
                 inventoryCount={inventory.length}
                 onSaveQuote={handleSaveQuote}
+                onConceptClick={handleConceptClick}
             />
         }
         case 'achievements':
@@ -608,6 +708,10 @@ function App() {
                        onUpdateNotes={handleUpdateNotes} 
                        timeline={timeline}
                        savedQuotes={savedQuotes}
+                       meditationEntry={meditationEntry}
+                       onUpdateMeditation={handleUpdateMeditation}
+                       stats={userStats}
+                       relationships={relationships}
                    />;
         case 'createNovel':
             return <AddNovel onSave={handleSaveUserBook} onCancel={handleBackToLibraryGrid} userName={currentUser.name} />;
@@ -623,7 +727,9 @@ function App() {
         user={currentUser}
         theme={theme} 
         onThemeToggle={handleThemeToggle} 
-        globalProgress={globalProgress} 
+        globalProgress={globalProgress}
+        energy={energy}
+        maxEnergy={MAX_ENERGY}
       />
       
       <div className="flex-1 overflow-y-auto relative">
@@ -657,6 +763,16 @@ function App() {
           <Modal title={modalTitle} onClose={() => setModalContent(null)}>
               {modalContent}
           </Modal>
+      )}
+
+      {showDailyQuote && (
+        <Modal title="اقتباس اليوم" onClose={() => setShowDailyQuote(false)}>
+            <div className="text-center">
+                <p className="text-lg italic mb-4">"الرجل الذي لا يقرأ كتباً جيدة لا ميزة له على الرجل الذي لا يستطيع قراءتها."</p>
+                <p className="font-bold">- مارك توين</p>
+                <p className="mt-6 text-amber-400 font-bold text-lg">✨ تمت إعادة ملء طاقتك بالكامل!</p>
+            </div>
+        </Modal>
       )}
 
       {isInventoryOpen && (

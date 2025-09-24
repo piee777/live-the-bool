@@ -34,6 +34,12 @@ export interface Message {
   inventoryAdd?: string;
   inventoryRemove?: string;
   progressIncrement?: number;
+  effect?: 'shake' | 'glow' | 'whisper';
+  relationshipChange?: {
+    characterName: string;
+    status: string;
+    change: number;
+  };
 }
 
 export interface Character {
@@ -73,6 +79,12 @@ export interface TimelineEvent {
   content: string;
 }
 
+export interface Relationship {
+  characterName: string;
+  status: string; // e.g., 'يثق بك', 'متشكك'
+  level: number; // A percentage from 0 to 100
+}
+
 export interface StoryState {
     messages: Message[];
     storyProgress: number;
@@ -81,6 +93,7 @@ export interface StoryState {
     inventory: string[];
     timeline: TimelineEvent[];
     savedQuotes: string[];
+    relationships: Relationship[];
 }
 
 export interface UserStoryChoice {
@@ -109,4 +122,9 @@ export interface User {
 export interface LeaderboardUser extends User {
     rank: number;
     score: number;
+}
+
+export interface MeditationEntry {
+    question: string;
+    answer: string;
 }
