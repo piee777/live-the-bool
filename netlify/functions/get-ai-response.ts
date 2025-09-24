@@ -25,7 +25,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
   if (event.httpMethod !== 'POST') {
     return {
         statusCode: 405,
-        body: JSON.stringify({ error: 'Method Not Allowed' }),
+        body: JSON.stringify({ error: 'الطريقة غير مسموح بها' }),
         headers: { 'Content-Type': 'application/json', "Access-Control-Allow-Origin": "*" },
     };
   }
@@ -34,7 +34,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     if (!event.body) {
         return {
             statusCode: 400,
-            body: JSON.stringify({ error: 'Request body is missing' }),
+            body: JSON.stringify({ error: 'الرجاء إرسال بيانات الطلب' }),
             headers: { 'Content-Type': 'application/json', "Access-Control-Allow-Origin": "*" },
         };
     }
@@ -42,13 +42,13 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     const { systemInstruction, history } = JSON.parse(event.body);
 
     if (!process.env.API_KEY) {
-      throw new Error("The API_KEY environment variable is not set in Netlify.");
+      throw new Error("لم يتم تعيين متغير البيئة API_KEY في Netlify.");
     }
 
     if (!Array.isArray(history) || history.length === 0) {
         return {
             statusCode: 400,
-            body: JSON.stringify({ error: 'History is required and must be a non-empty array' }),
+            body: JSON.stringify({ error: 'سجل المحادثة مطلوب ويجب أن لا يكون فارغًا' }),
             headers: { 'Content-Type': 'application/json', "Access-Control-Allow-Origin": "*" },
         };
     }
@@ -96,7 +96,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     if (contents.length === 0) {
         return {
             statusCode: 400,
-            body: JSON.stringify({ error: 'Valid conversational history could not be constructed from the provided messages.' }),
+            body: JSON.stringify({ error: 'لم يتم العثور على سجل محادثة صالح.' }),
             headers: { 'Content-Type': 'application/json', "Access-Control-Allow-Origin": "*" },
         };
     }
@@ -121,10 +121,10 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
 
   } catch (error) {
     console.error('Error in Netlify function:', error);
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+    const errorMessage = error instanceof Error ? error.message : "حدث خطأ غير معروف";
     return {
         statusCode: 500,
-        body: JSON.stringify({ error: 'Failed to get response from AI service.', details: errorMessage }),
+        body: JSON.stringify({ error: 'فشل الحصول على استجابة من خدمة الذكاء الاصطناعي.', details: errorMessage }),
         headers: { 'Content-Type': 'application/json', "Access-Control-Allow-Origin": "*" },
     };
   }
