@@ -52,6 +52,7 @@ export interface Book {
   summary: string;
   characters: Character[];
   isUserGenerated?: false;
+  isChallenge?: boolean;
 }
 
 export interface UserGeneratedBook {
@@ -103,4 +104,9 @@ export interface User {
   avatar_url?: string;
   unlocked_achievements?: string[];
   global_progress?: number;
+}
+
+export interface LeaderboardUser extends User {
+    rank: number;
+    score: number;
 }

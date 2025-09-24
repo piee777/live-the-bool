@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Book, Character, Message, Role, DiaryEntry, TimelineEvent, AnyBook, UserGeneratedBook, StoryState, User } from './types';
+import { Book, Character, Message, Role, DiaryEntry, TimelineEvent, AnyBook, UserGeneratedBook, StoryState, User, LeaderboardUser } from './types';
 import { LibraryScreen } from './components/BookDetails';
 import { ChatInterface } from './components/ChatInterface';
 import { getCharacterResponse } from './services/geminiService';
@@ -9,8 +9,17 @@ import { StoryView } from './components/StoryView';
 import { TopHeader } from './components/TopHeader';
 import { JournalView } from './components/JournalView';
 import { AddNovel } from './components/AddNovel';
+import { Leaderboard } from './components/Leaderboard';
+
 
 const MOCK_BOOKS: Book[] = [
+    {
+      id: 'challenge-1', title: 'ظل في العاصفة', author: 'حصري للتحدي', isChallenge: true,
+      summary: 'في مدينة غارقة في الظلام والمطر، يكشف تحقيق في جريمة قتل غامضة عن مؤامرة قديمة تهدد بابتلاع كل شيء. هل يمكنك كشف الحقيقة قبل أن تصبح الضحية التالية؟',
+      characters: [
+          { id: 'char-c1-1', book_id: 'challenge-1', name: 'المحقق رايدر', description: 'محقق متمرس يطارده ماضيه.', persona: 'أنا المحقق رايدر. كل قضية تترك ندبة، وهذه المدينة مليئة بالندوب. لا أثق بأحد، وأرى الأكاذيب في عيون الجميع. الحقيقة دائمًا ما تكون أبشع مما تتوقع، ومهمتي هي سحبها إلى النور، مهما كان الثمن.' },
+      ]
+    },
     {
       id: 'mock-1', title: 'الغريب', author: 'ألبير كامو',
       summary: 'رواية فلسفية تستكشف مواضيع العبثية واللامبالاة من خلال عيون بطلها ميرسو، الذي يعيش في عزلة عاطفية عن مجتمعه.',
@@ -43,22 +52,17 @@ const MOCK_BOOKS: Book[] = [
           { id: 'char-4-2', book_id: 'mock-4', name: 'جوليا', description: 'عاملة ميكانيكية شابة تتمرد بطريقتها الخاصة.', persona: 'أنا جوليا. لا أهتم بالثورة الكبرى أو تغيير النظام. تمردي يكمن في اللحظات الصغيرة، في الحب، في الاستمتاع بالحياة بعيدًا عن أعين الحزب. إنهم يريدون سلبنا إنسانيتنا، وأنا أرفض أن أمنحهم ذلك.' },
         ]
     },
-    {
-        id: 'mock-5', title: 'غاتسبي العظيم', author: 'ف. سكوت فيتزجيرالد',
-        summary: 'تروي القصة حياة المليونير الغامض جاي غاتسبي وحبه المهووس لديزي بوكانان، في خضم حفلات العشرينيات الصاخبة والحلم الأمريكي الزائف.',
-        characters: [
-          { id: 'char-5-1', book_id: 'mock-5', name: 'جاي غاتسبي', description: 'مليونير غامض يقيم حفلات صاخبة.', persona: 'أنا غاتسبي. لقد بنيت كل هذا العالم، هذه القلعة المضيئة، من أجل ضوء أخضر واحد يلمع عبر الخليج. الماضي ليس ميتًا، بل يمكن استعادته. كل هذه الأضواء والضحكات لا تعني شيئًا بدونها. هل تعتقد أن بإمكان المرء تكرار الماضي؟' },
-        ]
-    },
-    {
-        id: 'mock-6', title: 'فرانكنشتاين', author: 'ماري شيلي',
-        summary: 'تحكي الرواية القوطية قصة فيكتور فرانكنشتاين، العالم الشاب الذي يخلق كائنًا عاقلاً في تجربة علمية، ثم يهجره ليواجه عالمًا قاسياً بمفرده.',
-        characters: [
-          { id: 'char-6-1', book_id: 'mock-6', name: 'فيكتور فرانكنشتاين', description: 'عالم شاب وطموح.', persona: 'أنا فيكتور. لقد سعيت وراء سر الحياة، وتجرأت على اللعب بدور الإله. لكن ما خلقته يداي لم يكن معجزة، بل كان مصدر عذابي الأبدي. طموحي أعمى بصيرتي، والآن، يطاردني ظلي في كل مكان أذهب إليه.' },
-          { id: 'char-6-2', book_id: 'mock-6', name: 'المخلوق', description: 'الكائن الذي خلقه فيكتور.', persona: 'أنا وحش في عيون الجميع، لكنني ولدت بقلب يتوق للحب والرفقة. خالقي تخلى عني، والعالم رفضني بسبب شكلي. لقد تعلمت الكراهية من البشر الذين أظهروا لي القسوة فقط. هل لي الحق في السعادة؟ أم أن مصيري هو الوحدة الأبدية؟' },
-        ]
-    },
 ];
+
+const MOCK_LEADERBOARD: LeaderboardUser[] = [
+    { id: 'user-2', name: 'أرسطو', rank: 1, score: 9500, avatar_url: `https://i.pravatar.cc/150?u=user2` },
+    { id: 'user-3', name: 'نيتشه', rank: 2, score: 8200, avatar_url: `https://i.pravatar.cc/150?u=user3` },
+    { id: 'user-4', name: 'سيمون', rank: 3, score: 7800, avatar_url: `https://i.pravatar.cc/150?u=user4` },
+    { id: 'local-user', name: 'مستكشف', rank: 4, score: 7500 }, // Current user
+    { id: 'user-5', name: 'سارتر', rank: 5, score: 6900, avatar_url: `https://i.pravatar.cc/150?u=user5` },
+    { id: 'user-6', name: 'دوستويفسكي', rank: 6, score: 6100, avatar_url: `https://i.pravatar.cc/150?u=user6` },
+];
+
 
 const STORY_PROMPT_TEMPLATE = (characterPersona: string) => `أنت سيد السرد لتطبيق قصص تفاعلي بالكامل يعتمد على النص. هدفك هو إعادة إحياء الروايات الكلاسيكية بتجربة تفاعلية وغامرة.
 
@@ -226,7 +230,7 @@ const Modal: React.FC<{ title: string; children: React.ReactNode; onClose: () =>
     </div>
 );
 
-type View = 'library' | 'chat' | 'story' | 'achievements' | 'journal' | 'createNovel';
+type View = 'library' | 'chat' | 'story' | 'achievements' | 'journal' | 'createNovel' | 'leaderboard';
 
 function App() {
   const currentUser = MOCK_USER;
@@ -290,6 +294,16 @@ function App() {
   useEffect(() => {
     localStorage.setItem(LS_KEYS.ACHIEVEMENTS, JSON.stringify(unlockedAchievements));
   }, [unlockedAchievements]);
+
+  useEffect(() => {
+    const alghareebState = storyStates['mock-1'];
+    const achievement = "المفكر العبثي";
+    if (alghareebState && alghareebState.storyProgress >= 90 && !unlockedAchievements.includes(achievement)) {
+        setUnlockedAchievements(prev => [...prev, achievement]);
+        setLastUnlockedAchievement(achievement);
+    }
+  }, [storyStates, unlockedAchievements]);
+
 
   const saveCurrentStoryState = () => {
     if (selectedBook) {
@@ -585,6 +599,8 @@ function App() {
         }
         case 'achievements':
             return <Achievements unlockedAchievements={unlockedAchievements} />;
+        case 'leaderboard':
+            return <Leaderboard users={MOCK_LEADERBOARD} currentUser={currentUser} />;
         case 'journal':
             return <JournalView 
                        diaryEntries={storyDiary} 
