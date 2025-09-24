@@ -55,22 +55,53 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    // Map frontend roles to Gemini roles ('user' or 'model')
-    // Filter out system messages as they are not part of the conversational history for Gemini.
-    const contents = history
-      .filter((msg: Message) => msg.role !== 'system')
-      .map((msg: Message) => {
-        let role: 'user' | 'model';
-        if (msg.role === 'user') {
-          role = 'user';
-        } else {
-          role = 'model';
+    // --- Start of robust history processing ---
+
+    // 1. Filter out system messages and create a working copy.
+    let processedHistory: Message[] = history.filter((msg: Message) => msg.role !== 'system');
+
+    // 2. The conversation must start with a 'user' role. Drop any leading 'model' messages.
+    while (processedHistory.length > 0 && processedHistory[0].role !== 'user') {
+        processedHistory.shift();
+    }
+    
+    // 3. Merge consecutive messages from the same role to ensure alternation.
+    const finalHistory: Message[] = [];
+    if (processedHistory.length > 0) {
+        finalHistory.push({ ...processedHistory[0] }); // Push a copy
+        for (let i = 1; i < processedHistory.length; i++) {
+            const lastMessage = finalHistory[finalHistory.length - 1];
+            const currentMessage = processedHistory[i];
+
+            const isLastUser = lastMessage.role === 'user';
+            const isCurrentUser = currentMessage.role === 'user';
+
+            if (isLastUser === isCurrentUser) {
+                // Roles are the same (e.g., user/user or model/model), merge content.
+                lastMessage.content += `\n\n${currentMessage.content}`;
+            } else {
+                // Roles are different, push the new message.
+                finalHistory.push({ ...currentMessage }); // Push a copy
+            }
         }
+    }
+
+    // 4. Map to the format required by the Gemini API.
+    const contents = finalHistory.map((msg: Message) => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }],
+    }));
+
+    // 5. Ensure we have something to send after processing.
+    if (contents.length === 0) {
         return {
-          role: role,
-          parts: [{ text: msg.content }],
+            statusCode: 400,
+            body: JSON.stringify({ error: 'Valid conversational history could not be constructed from the provided messages.' }),
+            headers: { 'Content-Type': 'application/json', "Access-Control-Allow-Origin": "*" },
         };
-      });
+    }
+    
+    // --- End of robust history processing ---
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
