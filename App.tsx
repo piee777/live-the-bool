@@ -454,11 +454,8 @@ function App() {
 
     const responseMessage = await getCharacterResponse(systemInstruction, updatedMessages);
     
-    const progressMatch = responseMessage.content.match(/\[progress:(\d+)\]/);
-    if (progressMatch) {
-        const increment = parseInt(progressMatch[1], 10);
-        setStoryProgress(prev => Math.min(prev + increment, 100));
-        responseMessage.content = responseMessage.content.replace(/\[progress:(\d+)\]/, '').trim();
+    if (responseMessage.progressIncrement) {
+      setStoryProgress(prev => Math.min(prev + responseMessage.progressIncrement!, 100));
     }
     
     if (responseMessage.role === Role.NARRATOR) {

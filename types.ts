@@ -33,6 +33,7 @@ export interface Message {
   impact?: string;
   inventoryAdd?: string;
   inventoryRemove?: string;
+  progressIncrement?: number;
 }
 
 export interface Character {

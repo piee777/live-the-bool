@@ -1,4 +1,5 @@
 {
-  "name": "netlify-functions-removed",
-  "description": "Netlify Functions have been removed from this project."
+  "dependencies": {
+    "@google/genai": "^0.15.0"
+  }
 }
