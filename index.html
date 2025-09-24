@@ -5,6 +5,11 @@
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Storify</title>
+    
+    <!-- PWA Manifest & Theme Color -->
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#1c1917">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -104,6 +109,19 @@
     <!-- Load the app entry point via SystemJS, which will transpile it -->
     <script type="systemjs-import">
         System.import('./index.tsx');
+    </script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(registration => {
+            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+          }, err => {
+            console.log('ServiceWorker registration failed: ', err);
+          });
+        });
+      }
     </script>
   </body>
 </html>
