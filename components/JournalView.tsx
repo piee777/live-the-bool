@@ -17,7 +17,7 @@ interface JournalViewProps {
   relationships: Relationship[];
 }
 
-type JournalTab = 'diaries' | 'notes' | 'quotes' | 'timeline' | 'meditation' | 'stats' | 'characters';
+type JournalTab = 'diaries' | 'notes' | 'quotes' | 'map' | 'meditation' | 'stats' | 'characters';
 
 export const JournalView: React.FC<JournalViewProps> = ({ diaryEntries, personalNotes, onUpdateNotes, timeline, savedQuotes, meditationEntry, onUpdateMeditation, stats, relationships }) => {
   const [activeTab, setActiveTab] = useState<JournalTab>('diaries');
@@ -35,23 +35,6 @@ export const JournalView: React.FC<JournalViewProps> = ({ diaryEntries, personal
     </button>
   );
 
-  const TimelineNode: React.FC<{ event: TimelineEvent; type: 'narration' | 'choice' }> = ({ event, type }) => {
-    const isNarration = type === 'narration';
-    const justify = isNarration ? 'justify-start' : 'justify-end';
-    const textAlign = isNarration ? 'text-right pr-8' : 'text-left pl-8';
-
-    return (
-        <div className={`flex items-center w-full ${justify}`}>
-            <div className={`w-1/2 ${textAlign}`}>
-                <div className="inline-block p-3 rounded-xl shadow-lg bg-stone-800/50">
-                    <p className="text-sm font-arabic text-brand-text-light">{event.content}</p>
-                </div>
-            </div>
-        </div>
-    );
-  };
-
-
   return (
     <div className="p-4 sm:p-6 w-full h-full flex flex-col overflow-y-auto animate-fade-in">
       <h2 className="text-3xl text-center font-bold text-slate-100 font-arabic mb-6">السجل</h2>
@@ -61,7 +44,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ diaryEntries, personal
         <TabButton label="ملاحظاتي" tab="notes" />
         <TabButton label="الشخصيات" tab="characters" />
         <TabButton label="اقتباساتي" tab="quotes" />
-        <TabButton label="الخط الزمني" tab="timeline" />
+        <TabButton label="الخريطة" tab="map" />
         <TabButton label="تأمل" tab="meditation" />
         <TabButton label="إحصائيات" tab="stats" />
       </div>
@@ -111,25 +94,30 @@ export const JournalView: React.FC<JournalViewProps> = ({ diaryEntries, personal
                 )}
             </div>
         )}
-        {activeTab === 'timeline' && (
-            <div className="relative w-full max-w-xl mx-auto animate-fade-in p-4">
-                <div className="absolute top-0 left-1/2 -ml-0.5 w-1 h-full bg-stone-700"></div>
-                <div className="space-y-12">
+        {activeTab === 'map' && (
+            <div className="relative w-full max-w-xl mx-auto animate-fade-in p-4 bg-brand-surface-dark rounded-b-lg">
+                <h3 className="text-xl font-bold font-arabic text-center mb-6 text-brand-text-light">خريطة رحلتك</h3>
                 {timeline.length > 0 ? (
-                    timeline.map((event, index) => (
-                        <div key={index} className="relative">
-                            <div className="absolute top-1/2 -mt-5 left-1/2 -ml-5 w-10 h-10 rounded-full flex items-center justify-center text-2xl shadow-md z-10 bg-brand-bronze">
-                                {event.type === 'narration' ? '📖' : '💬'}
-                            </div>
-                            <TimelineNode event={event} type={event.type} />
+                    <>
+                        <div className="absolute top-0 right-8 w-1 h-full bg-stone-700"></div>
+                        <div className="space-y-8">
+                            {timeline.slice().reverse().map((event, index) => (
+                                <div key={index} className="relative flex items-center">
+                                    <div className="absolute top-1/2 -mt-5 right-3 w-10 h-10 rounded-full flex items-center justify-center text-2xl shadow-md z-10 bg-brand-bronze">
+                                        {event.type === 'narration' ? '📖' : '💬'}
+                                    </div>
+                                    <div className="mr-20 p-3 rounded-xl shadow-lg bg-stone-800/50 w-full">
+                                        <p className="text-sm font-arabic text-brand-text-light">{event.content}</p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    ))
+                    </>
                 ) : (
                     <div className="text-center text-brand-text-medium p-8">
-                        <p className="font-arabic text-lg">ابدأ قصة لتسجيل أحداثها هنا.</p>
+                        <p className="font-arabic text-lg">ابدأ قصة لرسم خريطتها هنا.</p>
                     </div>
                 )}
-                </div>
             </div>
         )}
         {activeTab === 'meditation' && (

@@ -3,18 +3,15 @@
 import React from 'react';
 import { ThemeToggle } from './ThemeToggle';
 import { User } from '../types';
-import { EnergyIndicator } from './EnergyIndicator';
 
 interface TopHeaderProps {
   user: User;
   theme: 'light' | 'dark';
   onThemeToggle: () => void;
   globalProgress: number;
-  energy: number;
-  maxEnergy: number;
 }
 
-export const TopHeader: React.FC<TopHeaderProps> = ({ user, theme, onThemeToggle, globalProgress, energy, maxEnergy }) => (
+export const TopHeader: React.FC<TopHeaderProps> = ({ user, theme, onThemeToggle, globalProgress }) => (
     <header className="flex-shrink-0 w-full p-4 flex flex-col gap-4 text-brand-text-light">
         <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
@@ -30,7 +27,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ user, theme, onThemeToggle
                  </div>
             </div>
             <div className="flex items-center gap-4">
-                <EnergyIndicator current={energy} max={maxEnergy} />
                 <ThemeToggle theme={theme} onToggle={onThemeToggle} />
             </div>
         </div>

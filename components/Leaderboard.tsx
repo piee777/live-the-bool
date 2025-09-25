@@ -6,54 +6,68 @@ interface LeaderboardProps {
   currentUser: User;
 }
 
-const getRankColor = (rank: number) => {
+const getRankGlow = (rank: number) => {
     switch (rank) {
-      case 1:
-        return 'border-yellow-400 bg-yellow-400/10';
-      case 2:
-        return 'border-slate-400 bg-slate-400/10';
-      case 3:
-        return 'border-amber-600 bg-amber-600/10';
-      default:
-        return 'border-slate-700 bg-transparent';
+      case 1: return 'shadow-yellow-400/40 border-yellow-400';
+      case 2: return 'shadow-slate-300/40 border-slate-300';
+      case 3: return 'shadow-amber-600/40 border-amber-600';
+      default: return 'shadow-transparent border-slate-700/50';
     }
 };
 
 const getRankIcon = (rank: number) => {
+    const iconBaseClass = "text-5xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]";
     switch (rank) {
-        case 1: return '🥇';
-        case 2: return '🥈';
-        case 3: return '🥉';
-        default: return `#${rank}`;
+        case 1: return <span className={iconBaseClass} style={{textShadow: '0 0 10px #facc15'}}>🥇</span>;
+        case 2: return <span className={iconBaseClass} style={{textShadow: '0 0 10px #e2e8f0'}}>🥈</span>;
+        case 3: return <span className={iconBaseClass} style={{textShadow: '0 0 10px #f59e0b'}}>🥉</span>;
+        default: return <span className="font-mono text-slate-400 text-3xl font-bold">{rank}</span>;
     }
-}
+};
 
+const LeaderboardCard: React.FC<{ user: LeaderboardUser; isCurrentUser: boolean }> = ({ user, isCurrentUser }) => {
+    return (
+        <div className={`flex-shrink-0 w-64 h-80 rounded-3xl p-6 flex flex-col items-center justify-around text-center transition-all duration-300 snap-center
+            bg-gradient-to-b from-brand-surface-dark/80 to-brand-surface-dark/50 border ${isCurrentUser ? 'border-amber-500 shadow-lg shadow-amber-500/10' : getRankGlow(user.rank)}`}>
+            
+            <div className="relative w-28 h-28">
+                <div className={`absolute inset-0 rounded-full ${getRankGlow(user.rank)} animate-pulse-slow`} style={{ animationDuration: '3s' }}></div>
+                <div className="absolute inset-1.5 rounded-full overflow-hidden border-2 border-brand-bg-dark">
+                   {user.avatar_url ? (
+                        <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full bg-brand-bg-dark flex items-center justify-center">
+                            <span className="font-bold text-4xl text-brand-text-medium">{user.name.charAt(0)}</span>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div>
+                {getRankIcon(user.rank)}
+            </div>
+
+            <div>
+              <p className="font-bold text-xl text-brand-text-light font-arabic truncate w-48">{user.name}</p>
+              <p className="font-bold text-4xl text-amber-400 font-mono tracking-tighter mt-1">{user.score.toLocaleString()}</p>
+            </div>
+        </div>
+    );
+};
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ users, currentUser }) => {
+  const sortedUsers = [...users].sort((a, b) => a.rank - b.rank);
+
   return (
-    <div className="p-4 sm:p-6 w-full h-full overflow-y-auto animate-fade-in">
-      <h2 className="text-3xl text-center font-bold text-slate-100 font-arabic mb-8">لوحة المتصدرين</h2>
-      <div className="max-w-2xl mx-auto space-y-3">
-        {users.sort((a, b) => a.rank - b.rank).map((user) => {
-          const isCurrentUser = user.id === currentUser.id;
-          return (
-            <div
+    <div className="w-full h-full flex items-center py-8">
+      <div className="w-full flex gap-6 overflow-x-auto snap-x snap-mandatory px-6 py-4 scrollbar-hide">
+        {sortedUsers.map((user) => (
+            <LeaderboardCard
               key={user.id}
-              className={`flex items-center p-3 rounded-xl border-2 transition-all ${getRankColor(user.rank)} ${isCurrentUser ? 'bg-brand-surface-dark scale-105 shadow-lg' : 'bg-brand-surface-dark/50'}`}
-            >
-              <div className={`w-12 h-12 text-xl font-bold flex items-center justify-center rounded-lg ${getRankColor(user.rank)}`}>
-                  {getRankIcon(user.rank)}
-              </div>
-              <div className="flex-grow mx-4">
-                <p className="font-bold text-lg text-brand-text-light font-arabic">{user.name}</p>
-              </div>
-              <div className="text-right">
-                 <p className="font-bold text-xl text-amber-400 font-mono">{user.score.toLocaleString()}</p>
-                 <p className="text-xs text-brand-text-medium font-arabic">نقطة</p>
-              </div>
-            </div>
-          );
-        })}
+              user={user}
+              isCurrentUser={user.id === currentUser.id}
+            />
+        ))}
       </div>
     </div>
   );

@@ -56,9 +56,9 @@ const ChatBubble: React.FC<{ message: Message, isLastMessage: boolean, isLoading
             : 'bg-brand-surface-dark text-brand-text-light rounded-bl-lg'
         }`}>
           {(isCharacter && isLastMessage && !isLoading) ? (
-              <Typewriter text={message.content} className="text-base leading-relaxed font-arabic" />
+              <Typewriter text={message.content} className="text-base leading-relaxed font-arabic break-words" />
           ) : (
-            <p className="text-base leading-relaxed font-arabic">{message.content}</p>
+            <p className="text-base leading-relaxed font-arabic break-words">{message.content}</p>
           )}
           {message.interruption && <InterruptionBubble interruption={message.interruption} />}
       </div>

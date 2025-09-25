@@ -12,27 +12,6 @@ interface LibraryScreenProps {
   onCreateNovel: () => void;
 }
 
-const ChallengeCard: React.FC<{ book: Book; onSelect: () => void }> = ({ book, onSelect }) => (
-    <button onClick={onSelect} className="col-span-full group transition-transform duration-300 hover:-translate-y-2">
-        <div className="w-full flex flex-col md:flex-row items-center rounded-2xl shadow-lg hover:shadow-2xl bg-brand-surface-dark border-2 border-amber-500/50 hover:border-amber-500 overflow-hidden shadow-glow-amber">
-            <div className="p-6 text-center md:text-right flex-grow">
-                <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7.014A8.002 8.002 0 0112 2a8.002 8.002 0 015.014 1.014C19.5 5 20 8 20 10c2 1 2.657 1.343 2.657 1.343a8 8 0 01-1.343 7.314z" />
-                    </svg>
-                    <p className="text-amber-500 font-bold font-arabic">التحدي الأسبوعي</p>
-                </div>
-                <h3 className="text-3xl font-bold text-white font-arabic">{book.title}</h3>
-                <p className="text-lg text-white/80 font-arabic mt-1">{book.author}</p>
-            </div>
-            <div className="p-6 bg-gradient-crimson-amber text-white font-bold text-xl font-arabic rounded-b-xl md:rounded-b-none md:rounded-l-xl">
-                ابدأ التحدي
-            </div>
-        </div>
-    </button>
-);
-
-
 const BookCard: React.FC<{ book: Book; progress: number; onSelect: () => void }> = ({ book, progress, onSelect }) => {
   const hasProgress = progress > 0;
   return (
@@ -160,19 +139,11 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({ books, selectedBoo
     return <BookScreen book={selectedBook} onCharacterSelect={onCharacterSelect} onStartStory={onStartStory} onBack={onBackToGrid} hasProgress={(storyProgress[selectedBook.id] || 0) > 0} />;
   }
   
-  const challengeBooks = books.filter(b => !b.isUserGenerated && (b as Book).isChallenge);
-  const regularBooks = books.filter(b => !(!b.isUserGenerated && (b as Book).isChallenge));
-
   return (
     <div className="p-4 sm:p-6 w-full h-full overflow-y-auto animate-fade-in">
-       {challengeBooks.length > 0 && (
-          <div className="mb-8">
-            <ChallengeCard book={challengeBooks[0] as Book} onSelect={() => onBookSelect(challengeBooks[0])} />
-          </div>
-        )}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
         <CreateNovelCard onSelect={onCreateNovel} />
-        {regularBooks.map((book) => {
+        {books.map((book) => {
             const progress = storyProgress[book.id] || 0;
             return !book.isUserGenerated 
             ? <BookCard key={book.id} book={book as Book} progress={progress} onSelect={() => onBookSelect(book)} />

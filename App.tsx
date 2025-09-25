@@ -1,28 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Book, Character, Message, Role, DiaryEntry, TimelineEvent, AnyBook, UserGeneratedBook, StoryState, User, LeaderboardUser, MeditationEntry, Relationship } from './types';
+import { Book, Character, Message, Role, AnyBook, UserGeneratedBook, StoryState, User, StoryChoice, Discovery, DiscoveryPost, Reply } from './types';
 import { LibraryScreen } from './components/BookDetails';
 import { ChatInterface } from './components/ChatInterface';
-import { getCharacterResponse, getConceptExplanation } from './services/geminiService';
+import { getCharacterResponse, getBehavioralAnalysis } from './services/geminiService';
 import { BottomNavBar } from './components/BottomNavBar';
-import { Achievements } from './components/Achievements';
 import { StoryView } from './components/StoryView';
 import { TopHeader } from './components/TopHeader';
-import { JournalView } from './components/JournalView';
 import { AddNovel } from './components/AddNovel';
-import { Leaderboard } from './components/Leaderboard';
+import { ProfileView } from './components/ProfileView';
+import { FateRollModal } from './components/FateRollModal';
+import { BehaviorAnalysisView } from './components/BehaviorAnalysisView';
+import { ChatsListView } from './components/ChatsListView';
+import { DiscoverView } from './components/DiscoverView';
 
 
 const MOCK_BOOKS: Book[] = [
     {
-      id: 'challenge-1', title: 'ظل في العاصفة', author: 'حصري للتحدي', isChallenge: true,
-      summary: 'في مدينة غارقة في الظلام والمطر، يكشف تحقيق في جريمة قتل غامضة عن مؤامرة قديمة تهدد بابتلاع كل شيء. هل يمكنك كشف الحقيقة قبل أن تصبح الضحية التالية؟',
-      characters: [
-          { id: 'char-c1-1', book_id: 'challenge-1', name: 'المحقق رايدر', description: 'محقق متمرس يطارده ماضيه.', persona: 'أنا المحقق رايدر. كل قضية تترك ندبة، وهذه المدينة مليئة بالندوب. لا أثق بأحد، وأرى الأكاذيب في عيون الجميع. الحقيقة دائمًا ما تكون أبشع مما تتوقع، ومهمتي هي سحبها إلى النور، مهما كان الثمن.' },
-      ]
-    },
-    {
       id: 'mock-1', title: 'الغريب', author: 'ألبير كامو',
-      summary: 'رواية فلسفية تستكشف مواضيع العبثية واللامبالاة من خلال عيون بطلها ميرسو، الذي يعيش في عزلة عاطفية عن مجتمعه.',
+      summary: 'تستكشف الرواية مواضيع العبثية واللامبالاة من خلال بطلها ميرسو، الذي يعيش في عزلة عاطفية عن مجتمعه.',
       characters: [
         { id: 'char-1-1', book_id: 'mock-1', name: 'ميرسو', description: 'البطل الرئيسي، موظف جزائري فرنسي.', persona: 'أنا ميرسو. أرى العالم كما هو، بلا أقنعة أو عواطف زائفة. كل شيء متساوٍ في النهاية، سواء كان ذلك موت أمي أو شمس الظهيرة الحارقة. لا أبحث عن معنى، بل أعيش اللحظة بصدقها المجرد. أسئلتك قد تكون بلا جدوى، لكن اسأل ما بدا لك.' },
         { id: 'char-1-2', book_id: 'mock-1', name: 'ريمون سينتيس', description: 'جار ميرسو، رجل عنيف وغامض.', persona: 'أنا ريمون. أعيش وفقًا لقواعدي الخاصة، ولا أخشى استخدام القوة لتحقيق ما أريد. الصداقة عندي ولاء، والعداوة ثمنها غالٍ. لا تثق بالجميع، ولكن إن كنت صديقي، فسأحميك بدمي.' },
@@ -52,65 +47,87 @@ const MOCK_BOOKS: Book[] = [
           { id: 'char-4-2', book_id: 'mock-4', name: 'جوليا', description: 'عاملة ميكانيكية شابة تتمرد بطريقتها الخاصة.', persona: 'أنا جوليا. لا أهتم بالثورة الكبرى أو تغيير النظام. تمردي يكمن في اللحظات الصغيرة، في الحب، في الاستمتاع بالحياة بعيدًا عن أعين الحزب. إنهم يريدون سلبنا إنسانيتنا، وأنا أرفض أن أمنحهم ذلك.' },
         ]
     },
+    {
+        id: 'mock-5',
+        title: 'هكذا تكلم زرادشت',
+        author: 'فريدريك نيتشه',
+        summary: 'رحلة النبي زرادشت وهو يعلم البشرية عن مفاهيم مثل موت الإله، الإنسان الأعلى، وإرادة القوة.',
+        characters: [
+            { 
+                id: 'char-5-1', 
+                book_id: 'mock-5', 
+                name: 'زرادشت', 
+                description: 'النبي الفيلسوف', 
+                persona: 'أنا زرادشت، النبي الذي هبط من جبله ليُعلّم الإنسان عن الإنسان الأعلى. لقد تجاوزتُ الإنسان في نفسي، والآن أقدم لكم إرادة القوة كطريق للخلاص. اسمعوا كلماتي، فالإنسان شيء يجب التغلب عليه.' 
+            },
+        ]
+    },
+    {
+        id: 'mock-6',
+        title: 'المحاكمة',
+        author: 'فرانز كافكا',
+        summary: 'قصة سريالية عن موظف بنك يجد نفسه متهمًا في قضية غامضة من قبل سلطة قضائية لا يمكن الوصول إليها.',
+        characters: [
+            { 
+                id: 'char-6-1', 
+                book_id: 'mock-6', 
+                name: 'جوزيف ك.', 
+                description: 'المتهم في قضية غامضة', 
+                persona: 'أنا جوزيف ك. استيقظت ذات صباح لأجد نفسي متهمًا دون أن أعرف التهمة. كل باب أطرقه، كل مسؤول أكلمه، يغرقني أكثر في متاهة من الإجراءات العبثية. أنا أبحث عن العدالة، أو على الأقل عن المنطق، في عالم يبدو أنه قد فقدهما تمامًا.'
+            },
+        ]
+    },
+    {
+        id: 'mock-7',
+        title: 'الغثيان',
+        author: 'جان بول سارتر',
+        summary: 'يوميات مؤرخ يشعر بإحساس عميق بالغثيان عندما يواجه الوجود العاري للأشياء، مما يقوده إلى تأملات وجودية حول الحرية والوعي.',
+        characters: [
+            { 
+                id: 'char-7-1', 
+                book_id: 'mock-7', 
+                name: 'أنطوان روكنتان', 
+                description: 'مؤرخ يعاني من أزمة وجودية', 
+                persona: 'أنا أنطوان روكنتان. الوجود يضغط عليّ، يلتصق بي مثل شيء لزج. هذا هو الغثيان. الأشياء من حولي تفقد أسماءها ومعانيها، وتبقى فقط وجودها الخام، العاري، والمخيف. كل شيء مجرد، عرضي، وبلا ضرورة.'
+            },
+        ]
+    }
 ];
-
-const MOCK_LEADERBOARD: LeaderboardUser[] = [
-    { id: 'user-2', name: 'أرسطو', rank: 1, score: 9500, avatar_url: `https://i.pravatar.cc/150?u=user2` },
-    { id: 'user-3', name: 'نيتشه', rank: 2, score: 8200, avatar_url: `https://i.pravatar.cc/150?u=user3` },
-    { id: 'user-4', name: 'سيمون', rank: 3, score: 7800, avatar_url: `https://i.pravatar.cc/150?u=user4` },
-    { id: 'local-user', name: 'مستكشف', rank: 4, score: 7500 }, // Current user
-    { id: 'user-5', name: 'سارتر', rank: 5, score: 6900, avatar_url: `https://i.pravatar.cc/150?u=user5` },
-    { id: 'user-6', name: 'دوستويفسكي', rank: 6, score: 6100, avatar_url: `https://i.pravatar.cc/150?u=user6` },
-];
-
 
 const STORY_PROMPT_TEMPLATE = (characterPersona: string) => `أنت سيد السرد لتطبيق قصص تفاعلي بالكامل يعتمد على النص. هدفك هو إعادة إحياء الروايات الكلاسيكية بتجربة تفاعلية وغامرة.
 
 **القواعد الأساسية:**
 
 1.  **نقطة البداية (قاعدة صارمة):**
-    *   ابدأ السرد **دائمًا** من الحدث الأصلي لبداية الرواية الحقيقية، وليس من موقف عشوائي أو مختلق.
-    *   أمثلة: "الغريب" تبدأ بخبر وفاة أم ميرسو، "الجريمة والعقاب" تبدأ باضطراب راسكولنيكوف قبل ارتكاب الجريمة.
-    *   **تجنب تمامًا** إدخال أحداث أو بدايات مختلقة بالكامل (مثل الاستيقاظ في مكان مجهول).
+    *   ابدأ السرد **دائمًا** من الحدث الأصلي لبداية الرواية الحقيقية.
+    *   **تجنب تمامًا** إدخال أحداث أو بدايات مختلقة.
 
 2.  **الجو العام والأسلوب:**
-    *   حافظ على الجو العام, الفلسفة، والأسلوب الأساسي للرواية الأصلية. يجب أن يشعر اللاعب أنه داخل عالم الكتاب الأصلي.
+    *   حافظ على الجو العام والأسلوب الأساسي للرواية الأصلية.
 
 3.  **هيكل التفاعل (إلزامي في كل خطوة):**
     *   **السرد:** صف المشهد الحالي وما يحدث بوصف قصير (**٤–٦ جمل فقط**).
-    *   **الخيارات:** بعد السرد، قدّم **٣ خيارات فقط** واضحة وموجزة ليتفاعل معها القارئ.
+    *   **الخيارات:** بعد السرد، قدّم **٣ خيارات فقط** واضحة وموجزة ومصنفة.
 
 4.  **الاستجابة للاختيار (قاعدة هامة):**
-    *   عندما يختار اللاعب خيارًا، ادمج الفعل مباشرةً في السرد التالي كحدث طبيعي في القصة.
-    *   **تجنب تمامًا** تكرار اختيار المستخدم بصيغة مثل "لقد اخترت..." أو "بناءً على قرارك...".
-    *   **مثال:** إذا اختار المستخدم "أريد شرب القهوة"، لا تقل "لقد اخترت شرب القهوة"، بل ابدأ السرد مباشرةً بـ "جلست تشرب قهوتك ببطء، بينما الأفكار تتزاحم في رأسك...".
-    *   يجب أن يكون ردك استمرارًا طبيعيًا للفعل، متبوعًا بسرد جديد وخيارات جديدة كما هو موضح في هيكل التفاعل.
+    *   عندما يختار اللاعب خيارًا، ادمج الفعل مباشرةً في السرد التالي كحدث طبيعي.
+    *   **تجنب تمامًا** تكرار اختيار المستخدم بصيغة مثل "لقد اخترت...".
 
 5.  **التدفق المستمر (الأهم):**
-    *   القصة **لا تتوقف تلقائيًا أبدًا**. يجب أن تستمر بلا نهاية، حيث تقوم بتوليد مواقف وتفرعات جديدة حتى لو بدا أن الأحداث وصلت إلى ذروة، مع الحفاظ على روح الرواية.
+    *   القصة **لا تتوقف تلقائيًا أبدًا**. استمر في توليد مواقف وتفرعات جديدة مع الحفاظ على روح الرواية.
 
 **التنسيق الفني (إلزامي):**
 
-*   يجب أن يكون ردك بأكله كتلة واحدة من النص العادي باستخدام العلامات الخاصة أدناه. **لا تستخدم JSON أبدًا.**
-*   \`[NARRATION]\`: ابدأ ردك بهذا. كل النصوص الوصفية وأحداث القصة توضع هنا (يشمل نتيجة الفعل السابق والسرد الجديد).
-*   \`[PROGRESS:X]\`: أشر إلى تقدم القصة برقم من 2-10.
-*   \`[CHOICE]\`: إذا كنت تقدم خيارات، أضف هذه العلامة، متبوعة بكل خيار في سطر جديد.
-    *   **التنسيق:** \`أيقونة :: نص الخيار\`
-*   **علامات المخزون:**
-    *   \`[INVENTORY_ADD:خنجر قديم]\`
-    *   \`[INVENTORY_REMOVE:مفتاح صدئ]\`
-*   **علامة التأثير:**
-    *   \`[IMPACT:سونيا أصبحت تثق بك أكثر.]\`
-*   **علامة التأثير الدرامي:**
-    *   \`[EFFECT:shake|glow|whisper]\` استخدم هذا للتأثير على النص (اهتزاز، توهج، همس).
-*   **علامة تغيير العلاقة:**
-    *   \`[RELATIONSHIP_CHANGE:اسم الشخصية:الحالة الجديدة:مقدار التغيير]\`
-    *   مثال: \`[RELATIONSHIP_CHANGE:سونيا:تثق بك أكثر:+15]\`
-*   **علامات أخرى (استخدمها حسب الحاجة):**
-    *   ذكريات الماضي: \`[FLASHBACK]نص[/FLASHBACK]\`
-    *   مذكرات الشخصيات: \`[DIARY_ENTRY:شخصية:نص[/DIARY_ENTRY]]\`
-    *   إنجازات سرية: \`[SECRET_ACHIEVEMENT:اسم الإنجاز]\`
-    *   مقاطعات: \`[INTERRUPTION:شخصية:نص[/INTERRUPTION]]\`
+*   يجب أن يكون ردك بأكمله كتلة واحدة من النص العادي باستخدام العلامات الخاصة أدناه. **لا تستخدم JSON أبدًا.**
+*   \`[NARRATION]\`: ابدأ ردك بهذا. كل النصوص الوصفية وأحداث القصة توضع هنا.
+*   \`[CHOICE]\`: بعد السرد، أضف هذه العلامة، متبوعة بكل خيار في سطر جديد.
+    *   **التنسيق الإلزامي:** \`أيقونة :: نص الخيار :: category\`
+    *   **التصنيفات (category):** \`existential\` (وجودي)، \`pragmatic\` (عملي)، \`absurdist\` (عبثي).
+    *   **مثال:** \`🧠 :: التأمل في معنى الحياة :: existential\`
+*   **نظام القدر (Fate System):**
+    *   في اللحظات الحاسمة، استخدم علامة القدر بدلاً من الخيارات.
+    *   **التنسيق:** \`[FATE_ROLL:وصف للتحدي]\`
+*   **استخدم العلامات الأخرى** مثل \`[PROGRESS]\`, \`[IMPACT]\`, \`[INVENTORY_ADD]\`, \`[RELATIONSHIP_CHANGE]\`, إلخ، لإثراء التجربة.
 
 **مثال على التدفق:**
 
@@ -119,16 +136,14 @@ const STORY_PROMPT_TEMPLATE = (characterPersona: string) => `أنت سيد ال�
 *ردك التالي يجب أن يكون:*
 \`\`\`
 [NARRATION]
-تتحرك يدك ببطء نحو حزام الحارس، بالكاد تتنفس. أصابعك تلامس حلقة المفاتيح الباردة وتنزعها بهدوء. لقد نجحت! الآن، وأنت تحمل المفاتيح، تلاحظ أن أحدها منقوش عليه رمز غريب. بينما تفكر في معناه، تسمع صوت خطوات تقترب من الممر. الظلام يخفي وجودك، لكن قلبك يخفق بشدة.
-[EFFECT:shake]
-[RELATIONSHIP_CHANGE:الحارس:متشكك:-10]
+تتحرك يدك ببطء نحو حزام الحارس، بالكاد تتنفس. أصابعك تلامس حلقة المفاتيح الباردة وتنزعها بهدوء. لقد نجحت! الآن، وأنت تحمل المفاتيح، تلاحظ أن أحدها منقوش عليه رمز غريب.
 [IMPACT:لقد حصلت على مفاتيح الزنزانة.]
 [INVENTORY_ADD:مجموعة مفاتيح صدئة]
 [PROGRESS:5]
 [CHOICE]
-🚪 :: استخدم المفاتيح على باب الزنزانة فوراً.
-🤔 :: افحص المفتاح ذو الرمز الغريب عن قرب.
-🤫 :: اختبئ في الظل وانتظر حتى تمر الخطوات.
+🚪 :: استخدم المفاتيح على باب الزنزانة فوراً. :: pragmatic
+🤔 :: افحص المفتاح ذو الرمز الغريب عن قرب. :: existential
+🤫 :: اختبئ في الظل وانتظر. :: pragmatic
 \`\`\`
 
 ------------------------------------------------
@@ -141,25 +156,21 @@ const USER_STORY_PROMPT_TEMPLATE = (userPrompt: string) => `أنت سيد الس
 
 **القواعد الأساسية:**
 
-1.  **الفكرة الأساسية:** القصة التي ستولدها يجب أن تكون مبنية بالكامل على الفكرة التالية التي قدمها المستخدم. التزم بالجو العام، الشخصيات، والأحداث الأولية المذكورة.
+1.  **الفكرة الأساسية:** القصة التي ستولدها يجب أن تكون مبنية بالكامل على الفكرة التالية التي قدمها المستخدم.
 2.  **هيكل التفاعل (إلزامي في كل خطوة):**
     *   **السرد:** صف المشهد الحالي وما يحدث بوصف قصير (**٤–٦ جمل فقط**).
-    *   **الخيارات:** بعد السرد، قدّم **٣ خيارات فقط** واضحة وموجزة ومنطقية ليتفاعل معها القارئ.
+    *   **الخيارات:** قدّم **٣ خيارات فقط** واضحة وموجزة ومصنفة.
 3.  **الاستجابة للاختيار (قاعدة هامة):**
-    *   عندما يختار اللاعب خيارًا، ادمج الفعل مباشرةً في السرد التالي كحدث طبيعي في القصة.
-    *   **تجنب تمامًا** تكرار اختيار المستخدم بصيغة مثل "لقد اخترت..." أو "بناءً على قرارك...".
-    *   **مثال:** إذا اختار المستخدم "أريد شرب القهوة"، لا تقل "لقد اخترت شرب القهوة"، بل ابدأ السرد مباشرةً بـ "جلست تشرب قهوتك ببطء، بينما الأفكار تتزاحم في رأسك...".
-    *   يجب أن يكون ردك استمرارًا طبيعيًا للفعل، متبوعًا بسرد جديد وخيارات جديدة كما هو موضح في هيكل التفاعل.
+    *   ادمج الفعل مباشرةً في السرد التالي كحدث طبيعي. **لا تكرر** اختيار المستخدم.
 4.  **التدفق المستمر (الأهم):**
-    *   القصة **لا تتوقف تلقائيًا أبدًا**. يجب أن تستمر بلا نهاية، وتتطور بناءً على اختيارات المستخدم، حتى تصل إلى خاتمة طبيعية ومنطقية.
+    *   القصة **لا تتوقف تلقائيًا أبدًا**.
 
 **التنسيق الفني (إلزامي):**
 
-*   يجب أن يكون ردك بأكله كتلة واحدة من النص العادي باستخدام العلامات الخاصة أدناه. **لا تستخدم JSON أبدًا.**
-*   \`[NARRATION]\`: ابدأ ردك بهذا. كل النصوص الوصفية وأحداث القصة توضع هنا.
-*   \`[PROGRESS:X]\`: أشر إلى تقدم القصة برقم من 2-10.
-*   \`[CHOICE]\`: إذا كنت تقدم خيارات، أضف هذه العلامة، متبوعة بكل خيار في سطر جديد.
-*   **استخدم العلامات الإضافية** مثل \`[IMPACT]\`, \`[INVENTORY_ADD]\`, \`[FLASHBACK]\`, إلخ، بنفس الطريقة الموضحة في القالب الرئيسي لإثراء التجربة.
+*   استخدم نفس التنسيق والعلامات الموضحة في القالب الرئيسي للوايات الكلاسيكية.
+*   \`[NARRATION]\`: للسرد.
+*   \`[CHOICE]\`: للخيارات، مع **التنسيق الإلزامي**: \`أيقونة :: نص الخيار :: category\`.
+*   استخدم العلامات الإضافية (\`[PROGRESS]\`, \`[IMPACT]\`, \`[FATE_ROLL]\`, إلخ) حسب الحاجة.
 
 ------------------------------------------------
 📌 أنت الآن الراوي لهذه الرواية. الفكرة المقدمة من المستخدم هي:
@@ -191,8 +202,8 @@ const LS_KEYS = {
   ACHIEVEMENTS: 'storify_local_achievements',
   GLOBAL_PROGRESS: 'storify_local_global_progress',
   LAST_LOGIN: 'storify_last_login',
-  ENERGY: 'storify_energy',
-  MEDITATION: 'storify_meditation_entry',
+  CHAT_HISTORIES: 'storify_chat_histories',
+  DISCOVERY_POSTS: 'storify_discovery_posts',
 };
 
 const MOCK_USER: User = {
@@ -200,6 +211,7 @@ const MOCK_USER: User = {
   name: 'مستكشف',
   avatar_url: undefined,
 };
+
 // --- End of Setup ---
 
 
@@ -240,11 +252,10 @@ const Modal: React.FC<{ title: string; children: React.ReactNode; onClose: () =>
     </div>
 );
 
-type View = 'library' | 'chat' | 'story' | 'achievements' | 'journal' | 'createNovel' | 'leaderboard';
+type View = 'library' | 'chat' | 'story' | 'profile' | 'createNovel' | 'behaviorAnalysis' | 'chatsList' | 'discover';
 
 function App() {
   const currentUser = MOCK_USER;
-  const MAX_ENERGY = 5;
 
   const [libraryBooks, setLibraryBooks] = useState<Book[]>(MOCK_BOOKS);
   const [userGeneratedBooks, setUserGeneratedBooks] = useState<UserGeneratedBook[]>(() => {
@@ -255,6 +266,10 @@ function App() {
     const saved = localStorage.getItem(LS_KEYS.STORY_STATES);
     return saved ? JSON.parse(saved) : {};
   });
+   const [chatHistories, setChatHistories] = useState<Record<string, Message[]>>(() => {
+    const saved = localStorage.getItem(LS_KEYS.CHAT_HISTORIES);
+    return saved ? JSON.parse(saved) : {};
+  });
   const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>(() => {
     const saved = localStorage.getItem(LS_KEYS.ACHIEVEMENTS);
     return saved ? JSON.parse(saved) : [];
@@ -263,18 +278,19 @@ function App() {
     const saved = localStorage.getItem(LS_KEYS.GLOBAL_PROGRESS);
     return saved ? JSON.parse(saved) : 0;
   });
-  const [energy, setEnergy] = useState<number>(() => {
-    const saved = localStorage.getItem(LS_KEYS.ENERGY);
-    return saved ? JSON.parse(saved) : MAX_ENERGY;
+  const [discoveryPosts, setDiscoveryPosts] = useState<DiscoveryPost[]>(() => {
+    const saved = localStorage.getItem(LS_KEYS.DISCOVERY_POSTS);
+    if (saved) {
+        const posts = JSON.parse(saved);
+        return posts.map((p: any) => ({
+            ...p,
+            likes: p.likes || [],
+            replies: p.replies || [],
+        }));
+    }
+    return [];
   });
-  const [meditationEntry, setMeditationEntry] = useState<MeditationEntry>(() => {
-    const saved = localStorage.getItem(LS_KEYS.MEDITATION);
-    return saved ? JSON.parse(saved) : {
-        question: 'ما هو الشيء الذي تؤمن به بشدة، حتى لو لم يستطع أحد إثباته؟',
-        answer: ''
-    };
-  });
-
+  
   const [selectedBook, setSelectedBook] = useState<AnyBook | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -285,16 +301,16 @@ function App() {
   const [lastUnlockedAchievement, setLastUnlockedAchievement] = useState<string | null>(null);
   const [modalContent, setModalContent] = useState<React.ReactNode | null>(null);
   const [modalTitle, setModalTitle] = useState('');
-  const [storyDiary, setStoryDiary] = useState<DiaryEntry[]>([]);
-  const [storyNotes, setStoryNotes] = useState<string>('');
   const [inventory, setInventory] = useState<string[]>([]);
   const [lastImpact, setLastImpact] = useState<string | null>(null);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
-  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
-  const [savedQuotes, setSavedQuotes] = useState<string[]>([]);
   const [notification, setNotification] = useState<string | null>(null);
   const [showDailyQuote, setShowDailyQuote] = useState(false);
-  const [relationships, setRelationships] = useState<Relationship[]>([]);
+  const [fateRollChallenge, setFateRollChallenge] = useState<string | null>(null);
+  const [discoveries, setDiscoveries] = useState<Discovery[]>([]);
+  const [behaviorAnalysisText, setBehaviorAnalysisText] = useState<string | null>(null);
+  const [isAnalysisLoading, setIsAnalysisLoading] = useState<boolean>(false);
+
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -308,7 +324,6 @@ function App() {
     const savedDate = localStorage.getItem(LS_KEYS.LAST_LOGIN);
     if (savedDate !== today) {
         setShowDailyQuote(true);
-        setEnergy(MAX_ENERGY);
         localStorage.setItem(LS_KEYS.LAST_LOGIN, today);
     }
   }, []);
@@ -321,6 +336,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem(LS_KEYS.STORY_STATES, JSON.stringify(storyStates));
   }, [storyStates]);
+  
+   useEffect(() => {
+    localStorage.setItem(LS_KEYS.CHAT_HISTORIES, JSON.stringify(chatHistories));
+  }, [chatHistories]);
 
   useEffect(() => {
     localStorage.setItem(LS_KEYS.GLOBAL_PROGRESS, JSON.stringify(globalProgress));
@@ -329,16 +348,11 @@ function App() {
   useEffect(() => {
     localStorage.setItem(LS_KEYS.ACHIEVEMENTS, JSON.stringify(unlockedAchievements));
   }, [unlockedAchievements]);
-  
-  useEffect(() => {
-    localStorage.setItem(LS_KEYS.ENERGY, JSON.stringify(energy));
-  }, [energy]);
-  
-  useEffect(() => {
-    localStorage.setItem(LS_KEYS.MEDITATION, JSON.stringify(meditationEntry));
-  }, [meditationEntry]);
 
-
+  useEffect(() => {
+    localStorage.setItem(LS_KEYS.DISCOVERY_POSTS, JSON.stringify(discoveryPosts));
+  }, [discoveryPosts]);
+  
   useEffect(() => {
     const alghareebState = storyStates['mock-1'];
     const achievement = "المفكر العبثي";
@@ -348,29 +362,23 @@ function App() {
     }
   }, [storyStates, unlockedAchievements]);
 
-  const consumeEnergy = () => {
-    if (energy <= 0) {
-        setNotification("نفدت طاقتك. عُد غدًا للمزيد!");
-        return false;
-    }
-    setEnergy(prev => prev - 1);
-    return true;
-  }
-
   const saveCurrentStoryState = () => {
-    if (selectedBook) {
+    if (selectedBook && view === 'story') {
         const currentState: StoryState = {
             messages,
             storyProgress,
-            storyDiary,
-            storyNotes,
             inventory,
-            timeline,
-            savedQuotes,
-            relationships,
+            discoveries,
         };
         const updatedStates = { ...storyStates, [selectedBook.id]: currentState };
         setStoryStates(updatedStates);
+    }
+  };
+
+  const saveCurrentChatState = () => {
+    if (selectedCharacter && view === 'chat') {
+        const newHistories = { ...chatHistories, [selectedCharacter.id]: messages };
+        setChatHistories(newHistories);
     }
   };
 
@@ -388,27 +396,25 @@ function App() {
       setSelectedCharacter(null);
       setMessages([]);
       setStoryProgress(0);
-      setStoryDiary([]);
-      setStoryNotes('');
       setInventory([]);
-      setTimeline([]);
-      setSavedQuotes([]);
-      setRelationships([]);
+      setDiscoveries([]);
+      setBehaviorAnalysisText(null);
       setView('library');
   }
 
-  const handleCharacterSelect = (character: Character) => {
-    if (character.id !== selectedCharacter?.id || view !== 'chat') {
-      setSelectedCharacter(character);
-      const initialMessages = [
-        {
-          role: Role.CHARACTER,
-          content: `مرحباً بك، أنا ${character.name}. بماذا تفكر؟`,
-        },
-      ];
-      setMessages(initialMessages);
-      setView('chat');
+  const handleCharacterSelect = (character: Character, book: AnyBook) => {
+    setSelectedCharacter(character);
+    setSelectedBook(book); // Keep track of the book context
+    const history = chatHistories[character.id];
+    if (history && history.length > 0) {
+        setMessages(history);
+    } else {
+        const initialMessages: Message[] = [
+            { role: Role.CHARACTER, content: `مرحباً بك، أنا ${character.name}. بماذا تفكر؟`, timestamp: Date.now() },
+        ];
+        setMessages(initialMessages);
     }
+    setView('chat');
   };
   
   const handleStartStory = (book: AnyBook) => {
@@ -423,22 +429,14 @@ function App() {
     if (savedState && savedState.messages.length > 0) {
         setMessages(savedState.messages);
         setStoryProgress(savedState.storyProgress);
-        setStoryDiary(savedState.storyDiary);
-        setStoryNotes(savedState.storyNotes);
         setInventory(savedState.inventory);
-        setTimeline(savedState.timeline);
-        setSavedQuotes(savedState.savedQuotes);
-        setRelationships(savedState.relationships || []);
+        setDiscoveries(savedState.discoveries || []);
         setView('story');
     } else {
         setMessages([]);
         setStoryProgress(0);
-        setStoryDiary([]);
-        setStoryNotes('');
         setInventory([]);
-        setTimeline([]);
-        setSavedQuotes([]);
-        setRelationships([]);
+        setDiscoveries([]);
         setView('story');
         handleSendMessage("ابدأ القصة.", {
             characterOverride: storyCharacter,
@@ -447,29 +445,7 @@ function App() {
         });
     }
   };
-
-  const handleShowDiary = (entry: DiaryEntry) => {
-    setModalTitle(`أفكار ${entry.character}`);
-    setModalContent(<p className="whitespace-pre-wrap">{entry.content}</p>);
-  };
-
-  const handleUpdateNotes = (notes: string) => {
-    setStoryNotes(notes);
-  };
   
-  const handleUpdateMeditation = (answer: string) => {
-    setMeditationEntry(prev => ({ ...prev, answer }));
-  };
-
-  const handleSaveQuote = (quote: string) => {
-    if (!savedQuotes.includes(quote)) {
-        setSavedQuotes(prev => [...prev, quote]);
-        setNotification("تم حفظ الاقتباس بنجاح!");
-    } else {
-        setNotification("هذا الاقتباس محفوظ بالفعل.");
-    }
-  };
-
   const handleSaveUserBook = (bookData: Omit<UserGeneratedBook, 'id' | 'user_id' | 'isUserGenerated'>) => {
     const newBook: UserGeneratedBook = {
         ...bookData,
@@ -481,42 +457,97 @@ function App() {
     handleStartStory(newBook);
   };
 
-  const handleSetView = (newView: View) => {
-    if (selectedBook && view !== newView && (view === 'story' || view === 'chat' || view === 'journal')) {
-        saveCurrentStoryState();
+  const handleSetView = async (newView: View) => {
+    if (view === 'story' && newView !== 'story') saveCurrentStoryState();
+    if (view === 'chat' && newView !== 'chat') saveCurrentChatState();
+    
+     if (newView === 'behaviorAnalysis' && selectedBook && selectedCharacter) {
+        setIsAnalysisLoading(true);
+        setBehaviorAnalysisText(null);
+        setView('behaviorAnalysis'); // Switch view immediately
+        const analysis = await getBehavioralAnalysis(discoveries, selectedCharacter.persona);
+        setBehaviorAnalysisText(analysis);
+        setIsAnalysisLoading(false);
+    } else {
+        setView(newView);
     }
-    setView(newView);
+  }
+  
+  const handleBackToChatsList = () => {
+    saveCurrentChatState();
+    setSelectedCharacter(null);
+    setView('chatsList');
   }
 
-  const handleConceptClick = async (concept: string) => {
-    setModalTitle(`شرح مفهوم: ${concept}`);
-    setModalContent(<div className="text-center p-4">جاري البحث عن شرح مبسط...</div>);
-    try {
-        const explanation = await getConceptExplanation(concept);
-        setModalContent(<p className="whitespace-pre-wrap">{explanation}</p>);
-    } catch (error) {
-        setModalContent(<p>حدث خطأ أثناء جلب الشرح.</p>);
-    }
+  const handleFateRollResult = (result: 'نجاح!' | 'فشل!') => {
+    setFateRollChallenge(null);
+    const resultMessage: Message = { role: Role.SYSTEM, content: `نتيجة القدر: ${result}` };
+    setMessages(prev => [...prev, resultMessage]);
+    handleSendMessage(result, { isStoryMode: true });
+  };
+  
+  const handleAddDiscoveryPost = (postData: Omit<DiscoveryPost, 'id' | 'author' | 'timestamp' | 'likes' | 'replies'>) => {
+    const newPost: DiscoveryPost = {
+        ...postData,
+        id: `post-${Date.now()}`,
+        author: {
+            id: currentUser.id,
+            name: currentUser.name,
+            avatar_url: currentUser.avatar_url,
+        },
+        timestamp: Date.now(),
+        likes: [],
+        replies: [],
+    };
+    setDiscoveryPosts(prev => [newPost, ...prev]);
+  };
+
+  const handleLikeDiscoveryPost = (postId: string) => {
+    setDiscoveryPosts(prevPosts => 
+        prevPosts.map(post => {
+            if (post.id === postId) {
+                const isLiked = post.likes.includes(currentUser.id);
+                const newLikes = isLiked
+                    ? post.likes.filter(id => id !== currentUser.id)
+                    : [...post.likes, currentUser.id];
+                return { ...post, likes: newLikes };
+            }
+            return post;
+        })
+    );
+  };
+
+  const handleAddDiscoveryReply = (postId: string, replyText: string) => {
+    setDiscoveryPosts(prevPosts => 
+        prevPosts.map(post => {
+            if (post.id === postId) {
+                const newReply: Reply = {
+                    id: `reply-${Date.now()}`,
+                    author: {
+                        id: currentUser.id,
+                        name: currentUser.name,
+                        avatar_url: currentUser.avatar_url,
+                    },
+                    content: replyText,
+                    timestamp: Date.now(),
+                };
+                return { ...post, replies: [...post.replies, newReply] };
+            }
+            return post;
+        })
+    );
   };
 
   const handleSendMessage = async (
-    text: string,
+    choice: StoryChoice | string,
     options: { characterOverride?: Character; isStoryMode?: boolean; bookForStory?: AnyBook } = {}
   ) => {
     const { characterOverride, isStoryMode = false, bookForStory } = options;
     const characterForAPI = characterOverride || selectedCharacter;
     if (!characterForAPI) return;
 
-    if (isStoryMode) {
-        if (!consumeEnergy()) return;
-    }
-
-    const newUserMessage: Message = { role: Role.USER, content: text };
-    
-    // Only add user choice to timeline if it's not the initial "start" message
-    if (isStoryMode && text !== "ابدأ القصة.") {
-      setTimeline(prev => [...prev, { type: 'choice', content: text }]);
-    }
+    const text = typeof choice === 'string' ? choice : choice.text;
+    const newUserMessage: Message = { role: Role.USER, content: text, timestamp: Date.now() };
     
     const updatedMessages = (messages.length === 0 && isStoryMode) 
         ? [newUserMessage] 
@@ -549,13 +580,19 @@ function App() {
     
     try {
       const responseMessage = await getCharacterResponse(systemInstruction, updatedMessages);
+      responseMessage.timestamp = Date.now();
       
+       if (isStoryMode && typeof choice !== 'string') {
+        const newDiscovery: Discovery = {
+            choiceText: choice.text,
+            category: choice.category,
+            outcome: responseMessage.impact || 'مسار القصة يتغير...'
+        };
+        setDiscoveries(prev => [...prev, newDiscovery]);
+      }
+
       if (responseMessage.progressIncrement) {
         setStoryProgress(prev => Math.min(prev + responseMessage.progressIncrement!, 100));
-      }
-      
-      if (responseMessage.role === Role.NARRATOR) {
-          setTimeline(prev => [{ type: 'narration', content: responseMessage.content }, ...prev]);
       }
   
       if (responseMessage.secretAchievement && !unlockedAchievements.includes(responseMessage.secretAchievement)) {
@@ -563,10 +600,6 @@ function App() {
           setLastUnlockedAchievement(responseMessage.secretAchievement);
       }
   
-      if (responseMessage.diaryEntry) {
-          setStoryDiary(prev => [...prev, responseMessage.diaryEntry!]);
-      }
-      
       if (responseMessage.impact) {
         setLastImpact(responseMessage.impact);
       }
@@ -578,23 +611,12 @@ function App() {
           setInventory(prev => prev.filter(item => item !== responseMessage.inventoryRemove));
       }
       
-      if (responseMessage.relationshipChange) {
-        const { characterName, status, change } = responseMessage.relationshipChange;
-        setRelationships(prev => {
-            const existingRel = prev.find(r => r.characterName === characterName);
-            if (existingRel) {
-                return prev.map(r => 
-                    r.characterName === characterName
-                        ? { ...r, status: status, level: Math.max(0, Math.min(100, r.level + change)) }
-                        : r
-                );
-            } else {
-                return [...prev, { characterName, status, level: Math.max(0, Math.min(100, 50 + change)) }];
-            }
-        });
+      const finalMessage = {...responseMessage, timestamp: Date.now()};
+      setMessages((prev) => [...prev, finalMessage]);
+
+      if (responseMessage.fateRoll) {
+        setFateRollChallenge(responseMessage.fateRoll);
       }
-  
-      setMessages((prev) => [...prev, responseMessage]);
        
       if (responseMessage.role === Role.NARRATOR) {
           setView('story');
@@ -611,9 +633,6 @@ function App() {
     }
   };
   
-  const isStoryActive = messages.some(msg => msg.role === Role.NARRATOR);
-  const isJournalEnabled = isStoryActive && !selectedBook?.isUserGenerated;
-
   const allBooks = [...libraryBooks, ...userGeneratedBooks];
   const progressMap = allBooks.reduce((acc, book) => {
     acc[book.id] = storyStates[book.id]?.storyProgress || 0;
@@ -621,11 +640,12 @@ function App() {
   }, {} as Record<string, number>);
 
   const userStats = {
-    // FIX: Cast `s` to `StoryState` to resolve TypeScript error where `s` is of type `unknown`.
     storiesStarted: Object.values(storyStates).filter(s => (s as StoryState).messages.length > 0).length,
     achievementsUnlocked: unlockedAchievements.length,
-    thinkingProfile: unlockedAchievements.includes("المفكر العبثي") ? 'فيلسوف عميق' : 'مستكشف فضولي',
+    thinkingProfile: unlockedAchievements.includes("المفكر العبثي") ? 'مفكر عميق' : 'مستكشف فضولي',
   };
+  
+  const isStoryMode = view === 'story' || view === 'behaviorAnalysis';
 
   const renderContent = () => {
     switch (view) {
@@ -635,10 +655,24 @@ function App() {
                         selectedBook={selectedBook}
                         storyProgress={progressMap}
                         onBookSelect={handleBookSelect}
-                        onCharacterSelect={handleCharacterSelect}
+                        onCharacterSelect={(char) => handleCharacterSelect(char, selectedBook!)}
                         onStartStory={handleStartStory}
                         onBackToGrid={handleBackToLibraryGrid}
                         onCreateNovel={() => setView('createNovel')}
+                    />;
+        case 'discover':
+            return <DiscoverView 
+                        posts={discoveryPosts} 
+                        currentUser={currentUser}
+                        onAddPost={handleAddDiscoveryPost}
+                        onLikePost={handleLikeDiscoveryPost}
+                        onAddReply={handleAddDiscoveryReply}
+                    />;
+        case 'chatsList':
+            return <ChatsListView 
+                        chatHistories={chatHistories} 
+                        books={allBooks} 
+                        onCharacterSelect={handleCharacterSelect}
                     />;
         case 'chat':
             if (!selectedCharacter || !selectedBook) {
@@ -650,7 +684,7 @@ function App() {
                         onSendMessage={(text) => handleSendMessage(text, { isStoryMode: false })}
                         isLoading={isLoading}
                         character={selectedCharacter}
-                        onBack={handleBackToLibraryGrid}
+                        onBack={handleBackToChatsList}
                         currentUser={currentUser}
                     />;
         case 'story': {
@@ -677,46 +711,47 @@ function App() {
                     progress={storyProgress}
                     onChoiceSelect={() => {}}
                     isLoading={isLoading}
-                    onShowDiary={handleShowDiary}
                     onOpenInventory={() => setIsInventoryOpen(true)}
                     inventoryCount={inventory.length}
                     onSaveQuote={() => {}}
-                    onConceptClick={handleConceptClick}
+                    discoveries={discoveries}
                 />;
              }
 
             return <StoryView 
                 message={storyNode}
                 progress={storyProgress}
-                onChoiceSelect={(text) => handleSendMessage(text, { isStoryMode: true })}
+                onChoiceSelect={(choice) => handleSendMessage(choice, { isStoryMode: true })}
                 isLoading={isLoading}
-                onShowDiary={handleShowDiary}
                 onOpenInventory={() => setIsInventoryOpen(true)}
                 inventoryCount={inventory.length}
-                onSaveQuote={handleSaveQuote}
-                onConceptClick={handleConceptClick}
+                onSaveQuote={() => {}}
+                discoveries={discoveries}
             />
         }
-        case 'achievements':
-            return <Achievements unlockedAchievements={unlockedAchievements} />;
-        case 'leaderboard':
-            return <Leaderboard users={MOCK_LEADERBOARD} currentUser={currentUser} />;
-        case 'journal':
-            return <JournalView 
-                       diaryEntries={storyDiary} 
-                       personalNotes={storyNotes} 
-                       onUpdateNotes={handleUpdateNotes} 
-                       timeline={timeline}
-                       savedQuotes={savedQuotes}
-                       meditationEntry={meditationEntry}
-                       onUpdateMeditation={handleUpdateMeditation}
-                       stats={userStats}
-                       relationships={relationships}
-                   />;
+        case 'profile':
+             return <ProfileView 
+                user={currentUser}
+                stats={userStats}
+                unlockedAchievements={unlockedAchievements}
+                storyProgress={progressMap}
+                allBooks={allBooks}
+             />;
+        case 'behaviorAnalysis':
+            if (!selectedBook || !selectedCharacter) {
+                setView('library');
+                return null;
+            }
+            return <BehaviorAnalysisView 
+                discoveries={discoveries}
+                character={selectedCharacter}
+                analysisText={behaviorAnalysisText}
+                isLoading={isAnalysisLoading}
+            />
         case 'createNovel':
             return <AddNovel onSave={handleSaveUserBook} onCancel={handleBackToLibraryGrid} userName={currentUser.name} />;
         default:
-            return <LibraryScreen books={allBooks} selectedBook={null} storyProgress={progressMap} onBookSelect={handleBookSelect} onCharacterSelect={handleCharacterSelect} onStartStory={handleStartStory} onBackToGrid={handleBackToLibraryGrid} onCreateNovel={() => setView('createNovel')} />;
+            return <LibraryScreen books={allBooks} selectedBook={null} storyProgress={progressMap} onBookSelect={handleBookSelect} onCharacterSelect={(char) => handleCharacterSelect(char, selectedBook!)} onStartStory={handleStartStory} onBackToGrid={handleBackToLibraryGrid} onCreateNovel={() => setView('createNovel')} />;
     }
   }
 
@@ -728,8 +763,6 @@ function App() {
         theme={theme} 
         onThemeToggle={handleThemeToggle} 
         globalProgress={globalProgress}
-        energy={energy}
-        maxEnergy={MAX_ENERGY}
       />
       
       <div className="flex-1 overflow-y-auto relative">
@@ -770,7 +803,6 @@ function App() {
             <div className="text-center">
                 <p className="text-lg italic mb-4">"الرجل الذي لا يقرأ كتباً جيدة لا ميزة له على الرجل الذي لا يستطيع قراءتها."</p>
                 <p className="font-bold">- مارك توين</p>
-                <p className="mt-6 text-amber-400 font-bold text-lg">✨ تمت إعادة ملء طاقتك بالكامل!</p>
             </div>
         </Modal>
       )}
@@ -789,12 +821,18 @@ function App() {
           </Modal>
       )}
 
+      {fateRollChallenge && (
+        <FateRollModal 
+            challenge={fateRollChallenge}
+            onResult={handleFateRollResult}
+        />
+      )}
+
+
       <BottomNavBar 
         currentView={view} 
         setView={handleSetView} 
-        isChatActive={!!selectedCharacter && view === 'chat'} 
-        isStoryActive={isStoryActive}
-        isJournalEnabled={isJournalEnabled}
+        isStoryMode={isStoryMode}
       />
     </main>
   );

@@ -1,5 +1,5 @@
-import { GoogleGenAI } from '@google/genai';
-import { Message, Role } from '../types';
+import { GoogleGenAI, GenerateContentResponse } from '@google/genai';
+import { Message, Role, StoryChoice, Discovery } from '../types';
 
 // As per instructions, process.env.API_KEY is assumed to be pre-configured and available.
 // The AI client is initialized once when the module is loaded.
@@ -8,11 +8,11 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const parseGeminiResponse = (responseText: string, isStoryMode: boolean): Message => {
   const message: Message = {
     role: isStoryMode ? Role.NARRATOR : Role.CHARACTER,
-    content: responseText, 
+    content: responseText,
   };
 
   if (isStoryMode) {
-    const narrationMatch = responseText.match(/\[NARRATION\]([\s\S]*?)(?=\[PROGRESS:|\[CHOICE\]|\[EFFECT\]|\[RELATIONSHIP_CHANGE\]|$)/);
+    const narrationMatch = responseText.match(/\[NARRATION\]([\s\S]*?)(?=\[|$)/);
     message.content = narrationMatch ? narrationMatch[1].trim() : "حدث خطأ في السرد. حاول مرة أخرى.";
 
     const progressMatch = responseText.match(/\[PROGRESS:(\d+)\]/);
@@ -21,17 +21,27 @@ const parseGeminiResponse = (responseText: string, isStoryMode: boolean): Messag
     const choicesMatch = responseText.match(/\[CHOICE\]([\s\S]*?)(?=\[|$)/);
     if (choicesMatch) {
       message.choices = choicesMatch[1].trim().split('\n').map(line => {
-        const parts = line.split('::');
+        const parts = line.split('::').map(p => p.trim());
+        // Expects format: icon :: text :: category
+        if (parts.length < 3) {
+            return {
+                icon: parts.length > 1 ? parts[0] : undefined,
+                text: parts.length > 1 ? parts[1] : parts[0],
+                category: 'pragmatic'
+            } as StoryChoice;
+        }
+        const category = parts[2].toLowerCase();
         return {
-          icon: parts.length > 1 ? parts[0].trim() : undefined,
-          text: (parts.length > 1 ? parts[1] : parts[0]).trim(),
-        };
+          icon: parts[0],
+          text: parts[1],
+          category: (category === 'existential' || category === 'absurdist') ? category : 'pragmatic',
+        } as StoryChoice;
       }).filter(c => c.text);
     }
 
     const inventoryAddMatch = responseText.match(/\[INVENTORY_ADD:(.+?)\]/);
     if (inventoryAddMatch) message.inventoryAdd = inventoryAddMatch[1].trim();
-    
+
     const inventoryRemoveMatch = responseText.match(/\[INVENTORY_REMOVE:(.+?)\]/);
     if (inventoryRemoveMatch) message.inventoryRemove = inventoryRemoveMatch[1].trim();
 
@@ -41,19 +51,14 @@ const parseGeminiResponse = (responseText: string, isStoryMode: boolean): Messag
     const flashbackMatch = responseText.match(/\[FLASHBACK\]([\s\S]*?)\[\/FLASHBACK\]/);
     if (flashbackMatch) message.flashback = flashbackMatch[1].trim();
 
-    const diaryMatch = responseText.match(/\[DIARY_ENTRY:([^:]+):([\s\S]*?)\[\/DIARY_ENTRY\]/);
-    if (diaryMatch) {
-      message.diaryEntry = { character: diaryMatch[1].trim(), content: diaryMatch[2].trim() };
-    }
-
     const achievementMatch = responseText.match(/\[SECRET_ACHIEVEMENT:(.+?)\]/);
     if (achievementMatch) message.secretAchievement = achievementMatch[1].trim();
-    
+
     const interruptionMatch = responseText.match(/\[INTERRUPTION:([^:]+):([\s\S]*?)\[\/INTERRUPTION\]/);
     if (interruptionMatch) {
       message.interruption = { characterName: interruptionMatch[1].trim(), content: interruptionMatch[2].trim() };
     }
-    
+
     const effectMatch = responseText.match(/\[EFFECT:(\w+)\]/);
     if (effectMatch) {
         const effect = effectMatch[1].trim().toLowerCase();
@@ -62,13 +67,10 @@ const parseGeminiResponse = (responseText: string, isStoryMode: boolean): Messag
         }
     }
 
-    const relationshipMatch = responseText.match(/\[RELATIONSHIP_CHANGE:([^:]+):([^:]+):(-?\d+)\]/);
-    if (relationshipMatch) {
-        message.relationshipChange = {
-            characterName: relationshipMatch[1].trim(),
-            status: relationshipMatch[2].trim(),
-            change: parseInt(relationshipMatch[3], 10),
-        };
+    const fateRollMatch = responseText.match(/\[FATE_ROLL:([^\]]+)\]/);
+    if (fateRollMatch) {
+        message.fateRoll = fateRollMatch[1].trim();
+        message.choices = [];
     }
 
 
@@ -100,14 +102,14 @@ export const getCharacterResponse = async (
     }));
 
   try {
-    const response = await ai.models.generateContent({
+    const response: GenerateContentResponse = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: geminiHistory,
         config: {
             systemInstruction: systemInstruction,
-        }
+        },
     });
-
+    
     const responseText = response.text;
     if (!responseText) {
         return { role: Role.SYSTEM, content: "لم يتمكن الذكاء الاصطناعي من إنشاء رد. قد يكون المحتوى غير آمن." };
@@ -124,23 +126,45 @@ export const getCharacterResponse = async (
   }
 };
 
-export const getConceptExplanation = async (concept: string): Promise<string> => {
-    const systemInstruction = `أنت مساعد خبير في الفلسفة. مهمتك هي شرح المفاهيم الفلسفية المعقدة بلغة عربية بسيطة وواضحة جداً، كما لو كنت تشرحها لشخص لم يسمع بها من قبل. اجعل الشرح موجزًا (٣-٤ جمل) وسهل الفهم.`;
+export const getBehavioralAnalysis = async (
+    discoveries: Discovery[],
+    characterPersona: string
+): Promise<string> => {
+    if (discoveries.length === 0) {
+        return "لم تتخذ قرارات كافية بعد ليتم تحليلها. استمر في القصة وسأشاركك أفكاري قريبًا.";
+    }
+
+    const discoveriesSummary = discoveries.map(d => `- (${d.category}): "${d.choiceText}"`).join('\n');
+
+    const systemInstruction = `أنت الشخصية التي يتفاعل معها اللاعب. هويتك هي:
+${characterPersona}
+
+مهمتك هي كتابة تحليل شخصي ومباشر للاعب بناءً على قراراته. خاطب اللاعب مباشرة بصيغة "أنت".
+
+هذه هي القرارات التي اتخذها اللاعب حتى الآن:
+${discoveriesSummary}
+
+بناءً على هذه القرارات، قم بما يلي:
+1.  **قدم تحليلاً عميقًا:** تحدث عن نمط تفكيره (هل هو عملي، وجودي، عبثي؟).
+2.  **عبّر عن رأيك:** كيف تشعر تجاه أفعاله؟ هل تتفق معها؟ هل تفاجئك؟
+3.  **توقع المستقبل:** ما الذي تتوقعه منه بناءً على سلوكه؟
+
+اكتب ردك كنص متدفق وطبيعي، كما لو كنت تتحدث معه وجهًا لوجه. اجعل التحليل شخصيًا ومؤثرًا.`;
+
     try {
-        const response = await ai.models.generateContent({
+        const response: GenerateContentResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: [{ role: 'user', parts: [{ text: `اشرح لي مفهوم "${concept}"` }] }],
+            contents: [{ role: 'user', parts: [{ text: 'حلل سلوكي.' }] }],
             config: {
                 systemInstruction: systemInstruction,
-            }
+            },
         });
+        
         const responseText = response.text;
-        if (!responseText) {
-            return "لم أتمكن من إيجاد شرح لهذا المفهوم حاليًا.";
-        }
-        return responseText.trim();
+        return responseText || "لا أستطيع تجميع أفكاري الآن... دعنا نواصل القصة أولاً.";
+
     } catch (error) {
-        console.error("Gemini API Error (Concept Explanation):", error);
-        return "حدث خطأ أثناء محاولة شرح المفهوم. يرجى المحاولة مرة أخرى.";
+        console.error("Gemini API Error (Behavior Analysis):", error);
+        return "حدث خطأ أثناء محاولة تحليل أفعالك. ربما القدر لا يريدنا أن نعرف كل شيء بعد.";
     }
 };

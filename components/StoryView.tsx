@@ -1,18 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { Message, StoryChoice, DiaryEntry, Interruption } from '../types';
+import { Message, StoryChoice, DiaryEntry, Interruption, Discovery } from '../types';
 import { Typewriter } from './Typewriter';
 
 interface StoryViewProps {
   message: Message;
   progress: number;
   isLoading: boolean;
-  onChoiceSelect: (choiceText: string) => void;
-  onShowDiary: (entry: DiaryEntry) => void;
+  onChoiceSelect: (choice: StoryChoice) => void;
   onOpenInventory: () => void;
   inventoryCount: number;
   onSaveQuote: (quote: string) => void;
-  onConceptClick: (concept: string) => void;
+  discoveries: Discovery[];
 }
+
+const CATEGORY_META: Record<Discovery['category'], { icon: string; label: string; color: string }> = {
+    existential: { icon: '🧠', label: 'وجودي', color: 'text-brand-purple' },
+    pragmatic: { icon: '🛠️', label: 'عملي', color: 'text-brand-blue' },
+    absurdist: { icon: '🌀', label: 'عبثي', color: 'text-brand-crimson' },
+};
+
+const DiscoveriesModal: React.FC<{ discoveries: Discovery[]; onClose: () => void }> = ({ discoveries, onClose }) => {
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-brand-surface-dark/95 w-full max-w-lg rounded-2xl shadow-2xl border border-white/10 flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+                <h3 className="text-xl font-bold font-arabic text-center text-amber-500 p-4 border-b border-white/10">قراراتي</h3>
+                <div className="flex-grow overflow-y-auto p-4">
+                    <div className="space-y-3">
+                        {discoveries.length > 0 ? [...discoveries].reverse().map((d, i) => (
+                            <div key={i} className="bg-brand-bg-dark/50 p-3 rounded-lg border border-white/10">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-2xl">{CATEGORY_META[d.category].icon}</span>
+                                    <p className="flex-grow font-arabic text-brand-text-light">{d.choiceText}</p>
+                                </div>
+                                <p className="text-xs text-amber-400 font-arabic mt-2 pr-10"><strong>التأثير:</strong> {d.outcome}</p>
+                            </div>
+                        )) : <p className="text-center text-brand-text-medium font-arabic p-8">لم تتخذ أي قرارات مؤثرة بعد.</p>}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const Flashback: React.FC<{ content: string }> = ({ content }) => (
     <div className="w-full border-2 border-dashed border-amber-800/50 bg-amber-950/20 p-4 rounded-xl mb-4 animate-fade-in">
@@ -27,7 +55,7 @@ const InterruptionDisplay: React.FC<{ interruption: Interruption }> = ({ interru
     </div>
 );
 
-const ChoiceButton: React.FC<{ choice: StoryChoice; onClick: (text: string) => void; isLoading: boolean }> = ({ choice, onClick, isLoading }) => {
+const ChoiceButton: React.FC<{ choice: StoryChoice; onClick: (choice: StoryChoice) => void; isLoading: boolean }> = ({ choice, onClick, isLoading }) => {
     const [timeLeft, setTimeLeft] = useState(choice.timer);
   
     useEffect(() => {
@@ -52,7 +80,7 @@ const ChoiceButton: React.FC<{ choice: StoryChoice; onClick: (text: string) => v
   
     return (
         <button
-            onClick={() => onClick(choice.text)}
+            onClick={() => onClick(choice)}
             disabled={isLoading}
             className="relative w-full flex items-center justify-center gap-3 p-4 text-md font-bold font-arabic text-white bg-white/5 hover:bg-white/10 backdrop-blur-lg rounded-xl shadow-lg border border-white/20 transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
         >
@@ -73,34 +101,10 @@ const ChoiceButton: React.FC<{ choice: StoryChoice; onClick: (text: string) => v
     );
 };
 
-const PHILOSOPHICAL_CONCEPTS = ['العبثية', 'الوجودية', 'العدمية', 'السخرية', 'الغربة', 'الأخ الأكبر', 'المِزَاج'];
-
-const renderContentWithConcepts = (content: string, onClick: (concept: string) => void) => {
-    if (!content) return '';
-    const regex = new RegExp(`\\b(${PHILOSOPHICAL_CONCEPTS.join('|')})\\b`, 'g');
-    
-    const parts = content.split(regex);
-    
-    return parts.map((part, index) => {
-        if (PHILOSOPHICAL_CONCEPTS.includes(part)) {
-            return (
-                <button 
-                    key={index} 
-                    onClick={() => onClick(part)}
-                    className="text-amber-400 font-bold underline decoration-dotted hover:bg-amber-400/10 rounded px-1 transition-colors"
-                >
-                    {part}
-                </button>
-            );
-        }
-        return part;
-    });
-};
-
-
-export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoading, onChoiceSelect, onShowDiary, onOpenInventory, inventoryCount, onSaveQuote, onConceptClick }) => {
+export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoading, onChoiceSelect, onOpenInventory, inventoryCount, onSaveQuote, discoveries }) => {
   const hasChoices = message.choices && message.choices.length > 0;
   const [typingComplete, setTypingComplete] = useState(false);
+  const [isDiscoveriesOpen, setIsDiscoveriesOpen] = useState(false);
 
   useEffect(() => {
     setTypingComplete(false);
@@ -112,8 +116,9 @@ export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoadi
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-end p-4 sm:p-6 overflow-hidden bg-brand-bg-dark">
+        {isDiscoveriesOpen && <DiscoveriesModal discoveries={discoveries} onClose={() => setIsDiscoveriesOpen(false)} />}
         {/* Content Area */}
-        <div className="relative z-10 w-full max-w-3xl flex flex-col gap-6 animate-fade-in-up">
+        <div className="relative z-10 w-full max-w-3xl flex flex-col gap-4 animate-fade-in-up">
             
             {message.flashback && <Flashback content={message.flashback} />}
 
@@ -130,7 +135,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoadi
                     </svg>
                 </button>
                 {typingComplete ? (
-                    <p className={narrationClassName}>{renderContentWithConcepts(message.content, onConceptClick)}</p>
+                    <p className={narrationClassName}>{message.content}</p>
                 ) : (
                     <Typewriter 
                         text={message.content} 
@@ -142,14 +147,6 @@ export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoadi
 
 
                 {message.interruption && <InterruptionDisplay interruption={message.interruption} />}
-
-                {message.diaryEntry && (
-                    <div className="mt-4 pt-4 border-t border-white/10 text-center">
-                        <button onClick={() => onShowDiary(message.diaryEntry!)} className="text-amber-500 font-bold hover:underline font-arabic text-sm">
-                           🖋️ عرض أفكار {message.diaryEntry.character}
-                        </button>
-                    </div>
-                )}
             </div>
 
             {/* Choices */}
@@ -165,7 +162,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoadi
                 <form onSubmit={(e) => {
                     e.preventDefault();
                     const input = (e.currentTarget.elements.namedItem('story-input') as HTMLInputElement).value;
-                    if(input.trim()) onChoiceSelect(input);
+                    if(input.trim()) onChoiceSelect({ text: input, category: 'pragmatic' });
                     (e.currentTarget.elements.namedItem('story-input') as HTMLInputElement).value = '';
                 }} className="flex items-center gap-3 w-full">
                     <button
@@ -180,6 +177,14 @@ export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoadi
                                 {inventoryCount}
                             </span>
                         )}
+                    </button>
+                     <button
+                        type="button"
+                        onClick={() => setIsDiscoveriesOpen(true)}
+                        className="relative bg-brand-surface-dark text-white rounded-full p-3 hover:bg-stone-700 disabled:opacity-50 transition-all transform hover:scale-110 shadow-lg"
+                        aria-label="Open discoveries"
+                    >
+                        <span role="img" aria-label="Compass">🧭</span>
                     </button>
                     <input
                         name="story-input"

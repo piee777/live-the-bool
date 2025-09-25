@@ -1,4 +1,5 @@
 
+
 export enum Role {
   USER = 'user',
   CHARACTER = 'character',
@@ -10,11 +11,7 @@ export interface StoryChoice {
   text: string;
   icon?: string; // e.g., an emoji '⚔️'
   timer?: number; // Optional timer in seconds for critical decisions
-}
-
-export interface DiaryEntry {
-  character: string;
-  content: string;
+  category: 'existential' | 'pragmatic' | 'absurdist';
 }
 
 export interface Interruption {
@@ -25,22 +22,45 @@ export interface Interruption {
 export interface Message {
   role: Role;
   content: string;
+  timestamp?: number;
   choices?: StoryChoice[];
   flashback?: string;
   secretAchievement?: string;
-  diaryEntry?: DiaryEntry;
   interruption?: Interruption;
   impact?: string;
   inventoryAdd?: string;
   inventoryRemove?: string;
   progressIncrement?: number;
   effect?: 'shake' | 'glow' | 'whisper';
-  relationshipChange?: {
-    characterName: string;
-    status: string;
-    change: number;
-  };
+  fateRoll?: string;
 }
+
+export interface Reply {
+  id: string;
+  author: {
+    id: string;
+    name: string;
+    avatar_url?: string;
+  };
+  content: string;
+  timestamp: number;
+}
+
+export interface DiscoveryPost {
+  id: string;
+  author: {
+    id: string;
+    name: string;
+    avatar_url?: string;
+  };
+  type: 'recommendation' | 'discussion';
+  title: string;
+  content: string;
+  timestamp: number;
+  likes: string[];
+  replies: Reply[];
+}
+
 
 export interface Character {
   id: string;
@@ -74,26 +94,17 @@ export interface UserGeneratedBook {
 export type AnyBook = Book | UserGeneratedBook;
 
 
-export interface TimelineEvent {
-  type: 'narration' | 'choice';
-  content: string;
-}
-
-export interface Relationship {
-  characterName: string;
-  status: string; // e.g., 'يثق بك', 'متشكك'
-  level: number; // A percentage from 0 to 100
+export interface Discovery {
+  choiceText: string;
+  category: 'existential' | 'pragmatic' | 'absurdist';
+  outcome: string;
 }
 
 export interface StoryState {
     messages: Message[];
     storyProgress: number;
-    storyDiary: DiaryEntry[];
-    storyNotes: string;
     inventory: string[];
-    timeline: TimelineEvent[];
-    savedQuotes: string[];
-    relationships: Relationship[];
+    discoveries: Discovery[];
 }
 
 export interface UserStoryChoice {
@@ -119,12 +130,95 @@ export interface User {
   global_progress?: number;
 }
 
-export interface LeaderboardUser extends User {
-    rank: number;
-    score: number;
+// FIX: Added missing community feature types to resolve import errors.
+export interface LeaderboardUser {
+  id: string;
+  name: string;
+  avatar_url?: string;
+  rank: number;
+  score: number;
+}
+
+export interface Suggestion {
+  id: string;
+  text: string;
+  authorName: string;
+  authorId: string;
+  votes: number;
+  upvotes: number;
+  downvotes: number;
+}
+
+export interface DebateSide {
+  title: string;
+  argument: string;
+  votes: number;
+}
+
+export interface DebateTopic {
+  id: string;
+  title: string;
+  sides: {
+    sideA: DebateSide;
+    sideB: DebateSide;
+  };
+}
+
+export interface NovelStat {
+  title: string;
+  readCount: number;
+}
+
+export interface DecisionOption {
+  text: string;
+  percentage: number;
+}
+
+export interface KeyDecision {
+  question: string;
+  optionA: DecisionOption;
+  optionB: DecisionOption;
+}
+
+export interface CommunityStats {
+  mostReadNovels: NovelStat[];
+  keyDecision: KeyDecision;
+}
+
+// FIX: Added missing type definitions to resolve import errors.
+export interface DiaryEntry {
+  character: string;
+  content: string;
 }
 
 export interface MeditationEntry {
+  question: string;
+  answer: string;
+}
+
+export interface Relationship {
+  characterName: string;
+  status: string;
+  level: number;
+}
+
+export interface TimelineEvent {
+  type: string;
+  content: string;
+}
+
+export interface ChallengeAnswer {
+    id: string;
+    text: string;
+    author: {
+        id: string;
+        name: string;
+        avatar_url?: string;
+    };
+    upvotes: number;
+}
+
+export interface DailyChallenge {
     question: string;
-    answer: string;
+    answers: ChallengeAnswer[];
 }

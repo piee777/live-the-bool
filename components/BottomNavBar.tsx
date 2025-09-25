@@ -1,15 +1,11 @@
-
-
 import React from 'react';
 
-type View = 'library' | 'chat' | 'story' | 'achievements' | 'journal' | 'createNovel' | 'leaderboard';
+type View = 'library' | 'chat' | 'story' | 'profile' | 'createNovel' | 'behaviorAnalysis' | 'chatsList' | 'discover';
 
 interface BottomNavBarProps {
   currentView: View;
   setView: (view: View) => void;
-  isChatActive: boolean;
-  isStoryActive: boolean;
-  isJournalEnabled: boolean;
+  isStoryMode: boolean;
 }
 
 const NavButton: React.FC<{
@@ -41,46 +37,66 @@ const NavButton: React.FC<{
 };
 
 
-export const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentView, setView, isChatActive, isStoryActive, isJournalEnabled }) => {
+export const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentView, setView, isStoryMode }) => {
+  const StoryNav = () => (
+    <>
+      <NavButton
+        label="القصة"
+        icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M19.3,4.22A5.1,5.1,0,0,0,16.21,3H7.79A5.1,5.1,0,0,0,4.7,4.22L3.13,8.39a3.18,3.18,0,0,0,0,2.16L4.7,14.72A5.1,5.1,0,0,0,7.79,16H16.21a5.1,5.1,0,0,0,3.09-1.22l1.57-4.17a3.18,3.18,0,0,0,0-2.16Zm-2,5.29L15.73,13.7a3.12,3.12,0,0,1-1.89.75H10.16a3.12,3.12,0,0,1-1.89-.75L6.7,9.51a1.21,1.21,0,0,1,0-.81L8.27,4.92a3.12,3.12,0,0,1,1.89-.75h5.68a3.12,3.12,0,0,1,1.89.75l1.57,4.17A1.21,1.21,0,0,1,17.29,9.51Z"></path><path d="M12.92,21.58a1,1,0,0,0,1.41,0l5.44-5.44a1,1,0,0,0-1.42-1.41L13,19.09V13a1,1,0,0,0-2,0v6.09l-3.35-3.36a1,1,0,0,0-1.42,1.41Z"></path></svg>}
+        isActive={currentView === 'story'}
+        isDisabled={!isStoryMode}
+        activeGradient="bg-gradient-crimson-amber"
+        onClick={() => setView('story')}
+      />
+      <NavButton
+        label="التحليل"
+        icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L8 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"></path></svg>}
+        isActive={currentView === 'behaviorAnalysis'}
+        isDisabled={!isStoryMode}
+        activeGradient="bg-gradient-bronze-warm"
+        onClick={() => setView('behaviorAnalysis')}
+      />
+    </>
+  );
+
+  const MainNav = () => (
+    <>
+      <NavButton
+        label="اكتشف"
+        icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+        isActive={currentView === 'discover'}
+        activeGradient="bg-gradient-bronze-warm"
+        onClick={() => setView('discover')}
+      />
+      <NavButton
+        label="المحادثات"
+        icon={<svg xmlns="http://www.w.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>}
+        isActive={currentView === 'chatsList' || currentView === 'chat'}
+        activeGradient="bg-gradient-crimson-amber"
+        onClick={() => setView('chatsList')}
+      />
+    </>
+  );
+
   return (
     <footer className="flex-shrink-0 w-full bg-brand-surface-dark/80 backdrop-blur-lg border-t border-white/10">
       <nav className="max-w-xl mx-auto flex justify-around items-center">
         <NavButton
           label="المكتبة"
-          icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>}
-          isActive={currentView === 'library'}
+          icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M20 22H6c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h14v11l-4-2-4 2V4H6v16h14V14l-4-2-4 2v8z"></path></svg>}
+          isActive={currentView === 'library' || currentView === 'createNovel'}
           activeGradient="bg-gradient-crimson-amber"
           onClick={() => setView('library')}
         />
+        
+        {isStoryMode ? <StoryNav /> : <MainNav />}
+
         <NavButton
-          label="القصة"
-          icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>}
-          isActive={currentView === 'story'}
-          isDisabled={!isStoryActive}
+          label="البروفايل"
+          icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path></svg>}
+          isActive={currentView === 'profile'}
           activeGradient="bg-gradient-crimson-amber"
-          onClick={() => setView('story')}
-        />
-        <NavButton
-            label="السجل"
-            icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg>}
-            isActive={currentView === 'journal'}
-            isDisabled={!isJournalEnabled}
-            activeGradient="bg-gradient-bronze-warm"
-            onClick={() => setView('journal')}
-        />
-         <NavButton
-          label="المتصدرون"
-          icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>}
-          isActive={currentView === 'leaderboard'}
-          activeGradient="bg-gradient-crimson-amber"
-          onClick={() => setView('leaderboard')}
-        />
-        <NavButton
-          label="الإنجازات"
-          icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round"strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
-          isActive={currentView === 'achievements'}
-          activeGradient="bg-gradient-crimson-amber"
-          onClick={() => setView('achievements')}
+          onClick={() => setView('profile')}
         />
       </nav>
     </footer>
