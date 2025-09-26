@@ -43,7 +43,7 @@ export interface Reply {
     avatar_url?: string;
   };
   content: string;
-  timestamp: number;
+  created_at: string;
 }
 
 export interface DiscoveryPost {
@@ -56,7 +56,7 @@ export interface DiscoveryPost {
   type: 'recommendation' | 'discussion';
   title: string;
   content: string;
-  timestamp: number;
+  created_at: string;
   likes: string[];
   replies: Reply[];
 }
@@ -80,19 +80,6 @@ export interface Book {
   isUserGenerated?: false;
   isChallenge?: boolean;
 }
-
-export interface UserGeneratedBook {
-  id: string;
-  user_id?: string; // Kept for potential future use, but not primary for local
-  title: string;
-  author: string;
-  summary: string; // User's short description
-  initialPrompt: string; // Detailed prompt for the AI
-  isUserGenerated: true;
-}
-
-export type AnyBook = Book | UserGeneratedBook;
-
 
 export interface Discovery {
   choiceText: string;
@@ -120,6 +107,17 @@ export interface UserChapter {
 
 export interface UserBook {
   chapters: UserChapter[];
+}
+
+// FIX: Added missing UserGeneratedBook interface to resolve import error.
+export interface UserGeneratedBook {
+  id: string;
+  user_id: string;
+  title: string;
+  author: string;
+  summary: string;
+  initialPrompt: string;
+  isUserGenerated: true;
 }
 
 export interface User {

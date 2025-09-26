@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, AnyBook } from '../types';
+import { User, Book } from '../types';
 import { AchievementsGrid } from './Achievements';
 
 interface ProfileViewProps {
@@ -10,7 +10,7 @@ interface ProfileViewProps {
     thinkingProfile: string;
   };
   unlockedAchievements: string[];
-  allBooks: AnyBook[];
+  allBooks: Book[];
   storyProgress: Record<string, number>;
 }
 

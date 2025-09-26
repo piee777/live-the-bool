@@ -1,11 +1,10 @@
 import React from 'react';
-// FIX: Import `Book` type to allow for safer type casting.
-import { Message, Character, AnyBook, Book } from '../types';
+import { Message, Character, Book } from '../types';
 
 interface ChatsListViewProps {
     chatHistories: Record<string, Message[]>;
-    books: AnyBook[];
-    onCharacterSelect: (character: Character, book: AnyBook) => void;
+    books: Book[];
+    onCharacterSelect: (character: Character, book: Book) => void;
 }
 
 const TimeAgo: React.FC<{ timestamp: number }> = ({ timestamp }) => {
@@ -25,17 +24,14 @@ export const ChatsListView: React.FC<ChatsListViewProps> = ({ chatHistories, boo
     const conversations = Object.entries(chatHistories)
         .map(([characterId, messages]) => {
             let character: Character | undefined;
-            let book: AnyBook | undefined;
+            let book: Book | undefined;
             
             for (const b of books) {
-                if (!b.isUserGenerated) {
-                    // FIX: Replaced `any` cast with a specific `Book` cast, made possible by the `!b.isUserGenerated` type guard.
-                    const found = (b as Book).characters.find((c: Character) => c.id === characterId);
-                    if (found) {
-                        character = found;
-                        book = b;
-                        break;
-                    }
+                const found = b.characters.find((c: Character) => c.id === characterId);
+                if (found) {
+                    character = found;
+                    book = b;
+                    break;
                 }
             }
 

@@ -4,7 +4,7 @@ import { DiscoveryPost, User, Reply } from '../types';
 interface DiscoverViewProps {
     posts: DiscoveryPost[];
     currentUser: User;
-    onAddPost: (postData: Omit<DiscoveryPost, 'id' | 'author' | 'timestamp' | 'likes' | 'replies'>) => void;
+    onAddPost: (postData: Omit<DiscoveryPost, 'id' | 'author' | 'created_at' | 'likes' | 'replies'>) => void;
     onLikePost: (postId: string) => void;
     onAddReply: (postId: string, replyText: string) => void;
 }
@@ -41,10 +41,10 @@ const PostCard: React.FC<{
         setReplyText('');
     };
     
-    const sortedReplies = [...post.replies].reverse();
+    const sortedReplies = [...post.replies].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
     return (
-        <div className={`w-full rounded-2xl border border-white/10 shadow-lg animate-fade-in-up transition-colors ${isRecommendation ? 'bg-gradient-to-br from-amber-800/40 to-amber-950/30' : 'bg-[#1A1A1A]'}`}>
+        <div className={`w-full rounded-2xl border border-white/10 shadow-lg animate-fade-in-up transition-colors ${isRecommendation ? 'bg-gradient-to-br from-amber-800/40 to-amber-950/30' : 'bg-brand-surface-dark'}`}>
             <div className="p-4">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-brand-bg-dark border-2 border-white/20 flex items-center justify-center overflow-hidden">
@@ -56,7 +56,7 @@ const PostCard: React.FC<{
                     </div>
                     <div>
                         <p className="font-bold font-arabic text-brand-text-light">{post.author.name}</p>
-                        <p className="text-xs text-brand-text-dark font-mono"><TimeAgo timestamp={post.timestamp} /></p>
+                        <p className="text-xs text-brand-text-dark font-mono"><TimeAgo timestamp={new Date(post.created_at).getTime()} /></p>
                     </div>
                 </div>
 
@@ -94,7 +94,7 @@ const PostCard: React.FC<{
                             <div className="bg-brand-bg-dark p-2 px-3 rounded-lg flex-1">
                                 <div className="flex items-baseline gap-2">
                                     <p className="font-bold text-sm font-arabic text-brand-text-light">{reply.author.name}</p>
-                                    <p className="text-xs text-brand-text-dark font-mono"><TimeAgo timestamp={reply.timestamp}/></p>
+                                    <p className="text-xs text-brand-text-dark font-mono"><TimeAgo timestamp={new Date(reply.created_at).getTime()}/></p>
                                 </div>
                                 <p className="text-sm font-arabic text-brand-text-medium mt-1 whitespace-pre-wrap break-words">{reply.content}</p>
                             </div>
@@ -116,7 +116,7 @@ const PostCard: React.FC<{
 const CreatePostModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    onAddPost: (postData: Omit<DiscoveryPost, 'id' | 'author' | 'timestamp' | 'likes' | 'replies'>) => void;
+    onAddPost: (postData: Omit<DiscoveryPost, 'id' | 'author' | 'created_at' | 'likes' | 'replies'>) => void;
     currentUser: User;
 }> = ({ isOpen, onClose, onAddPost, currentUser }) => {
     const [content, setContent] = useState('');
@@ -143,7 +143,7 @@ const CreatePostModal: React.FC<{
                 className={`relative w-full max-w-lg rounded-2xl p-0.5 bg-gradient-to-r from-brand-amber to-brand-crimson transition-all duration-300 ${isFocused ? 'shadow-[0_0_25px_rgba(255,111,97,0.4)]' : 'shadow-2xl'}`}
                 onClick={e => e.stopPropagation()}
             >
-                <div className="bg-[#1E1E1E] rounded-[15px] p-6 space-y-4">
+                <div className="bg-brand-surface-dark rounded-[15px] p-6 space-y-4">
                     <button onClick={onClose} className="absolute top-3 right-3 text-brand-text-dark hover:text-white transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -203,12 +203,15 @@ const CreatePostModal: React.FC<{
 export const DiscoverView: React.FC<DiscoverViewProps> = ({ posts, currentUser, onAddPost, onLikePost, onAddReply }) => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     
+    // Sort posts by date, newest first
+    const sortedPosts = [...posts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
     return (
         <div className="relative p-4 sm:p-6 w-full h-full overflow-y-auto animate-fade-in">
             <div className="max-w-xl mx-auto space-y-6 pb-24">
                 <h2 className="text-3xl text-left font-bold font-arabic">اكتشف</h2>
 
-                {posts.map(post => (
+                {sortedPosts.map(post => (
                     <PostCard key={post.id} post={post} currentUser={currentUser} onLike={onLikePost} onAddReply={onAddReply} />
                 ))}
                 {posts.length === 0 && (
