@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Book, Character, Message, Role, User, StoryChoice, Discovery, DiscoveryPost, Reply, StoryState } from './types';
-import * as supabase from './services/supabaseService';
+import React, { useState, useEffect, useRef } from 'react';
+import { Book, Character, Message, Role, User, StoryChoice, Discovery, StoryState, DiscoveryPost, Reply } from './types';
 import { LibraryScreen } from './components/BookDetails';
 import { ChatInterface } from './components/ChatInterface';
 import { getCharacterResponse, getBehavioralAnalysis } from './services/geminiService';
@@ -14,6 +13,7 @@ import { ChatsListView } from './components/ChatsListView';
 import { DiscoverView } from './components/DiscoverView';
 import { LoginScreen } from './components/LoginScreen';
 import SplashScreen from './components/SplashScreen';
+import * as db from './services/supabaseService';
 
 
 const STORY_PROMPT_TEMPLATE = (bookTitle: string, bookAuthor: string, bookSummary: string) => `أنت سيد السرد لتطبيق قصص تفاعلي بالكامل يعتمد على النص. هدفك هو إعادة إحياء الروايات الكلاسيكية بتجربة تفاعلية وغامرة. أنت **ملتزم تمامًا** بالرواية الأصلية.
@@ -115,7 +115,6 @@ const Modal: React.FC<{ title: string; children: React.ReactNode; onClose: () =>
 const AppLoader: React.FC<{ message: string }> = ({ message }) => (
     <div className="w-full h-full flex flex-col items-center justify-center text-center bg-brand-bg-dark">
         <div className="w-16 h-16 border-4 border-t-transparent border-amber-500 rounded-full animate-spin"></div>
-        <p className="font-arabic text-brand-text-medium mt-4">{message}</p>
     </div>
 );
 
@@ -124,14 +123,16 @@ type View = 'library' | 'chat' | 'story' | 'profile' | 'behaviorAnalysis' | 'cha
 export default function App() {
   const [isSplashScreen, setIsSplashScreen] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [appIsLoading, setAppIsLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   const [allBooks, setAllBooks] = useState<Book[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [storyStates, setStoryStates] = useState<Record<string, StoryState>>({});
   const [chatHistories, setChatHistories] = useState<Record<string, Message[]>>({});
+  const [posts, setPosts] = useState<DiscoveryPost[]>([]);
+
   const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
   const [globalProgress, setGlobalProgress] = useState<number>(0);
-  const [discoveryPosts, setDiscoveryPosts] = useState<DiscoveryPost[]>([]);
   
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
@@ -149,70 +150,112 @@ export default function App() {
   const [behaviorAnalysisText, setBehaviorAnalysisText] = useState<string | null>(null);
   const [isAnalysisLoading, setIsAnalysisLoading] = useState<boolean>(false);
   const [view, setView] = useState<View>('library');
-  
+
+  const isInitialDataLoaded = useRef(false);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsSplashScreen(false);
-    }, 3000); // Splash screen duration
+    }, 3000); 
     return () => clearTimeout(timer);
   }, []);
 
-  // Check for existing user on app start
   useEffect(() => {
-    const checkUser = async () => {
-        setAppIsLoading(true);
-        const userId = localStorage.getItem('storify_user_id');
-        if (userId) {
-            const userProfile = await supabase.getUserProfile(userId);
-            if (userProfile) {
-                setCurrentUser(userProfile);
-            } else {
-                localStorage.removeItem('storify_user_id'); // Clear invalid ID
-            }
+    if (isSplashScreen) return;
+    const savedUserJson = localStorage.getItem('storify_user');
+    if (savedUserJson) {
+        try {
+            setCurrentUser(JSON.parse(savedUserJson));
+        } catch (e) {
+            console.error("Failed to parse user from localStorage", e);
+            localStorage.removeItem('storify_user');
+            setIsDataLoading(false);
         }
-        setAppIsLoading(false); // Done checking, now we either show login or load data
-    };
-    if (!isSplashScreen) {
-        checkUser();
+    } else {
+        setIsDataLoading(false);
     }
   }, [isSplashScreen]);
 
-  // Load user-specific data once we have a user
   useEffect(() => {
-    const loadUserData = async () => {
-        if (!currentUser) return;
-        setAppIsLoading(true);
-        try {
-            await supabase.syncInitialBooks(); // Ensure books are up-to-date
-            
-            const [
-                booksData,
-                storyStatesData,
-                chatHistoriesData,
-                postsData
-            ] = await Promise.all([
-                supabase.getBooks(),
-                supabase.getStoryStates(currentUser.id),
-                supabase.getChatHistories(currentUser.id),
-                supabase.getDiscoveryPosts()
-            ]);
-            
-            setAllBooks(booksData);
-            setStoryStates(storyStatesData);
-            setChatHistories(chatHistoriesData);
-            setDiscoveryPosts(postsData);
-            setUnlockedAchievements([]); 
-            setGlobalProgress(0);
+    if (!currentUser) return;
 
-        } catch (error) {
-            console.error("Failed to load user data:", error);
-        } finally {
-            setAppIsLoading(false);
-        }
+    const loadAppData = async () => {
+        setIsDataLoading(true);
+        const [
+            booksData, 
+            storyStatesData, 
+            chatHistoriesData,
+            postsData,
+            usersData,
+        ] = await Promise.all([
+            db.getBooks(),
+            db.getStoryStates(currentUser.id),
+            db.getChatHistories(currentUser.id),
+            db.getDiscoveryPosts(),
+            db.getAllUsers(),
+        ]);
+
+        setAllBooks(booksData);
+        setStoryStates(storyStatesData);
+        setChatHistories(chatHistoriesData);
+        setPosts(postsData);
+        setAllUsers(usersData);
+        
+        setIsDataLoading(false);
     };
 
-    loadUserData();
+    loadAppData();
+
   }, [currentUser]);
+  
+  useEffect(() => {
+      if (!isDataLoading) {
+          isInitialDataLoaded.current = true;
+      }
+  }, [isDataLoading]);
+  
+    // --- AUTOSAVE Story State ---
+    const storySaveTimeoutRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (!isInitialDataLoaded.current || !currentUser || !selectedBook || view !== 'story') {
+            return;
+        }
+
+        // Only save state if the user has made at least one choice.
+        if (discoveries.length === 0) {
+            return;
+        }
+
+        if (storySaveTimeoutRef.current) clearTimeout(storySaveTimeoutRef.current);
+
+        storySaveTimeoutRef.current = window.setTimeout(() => {
+            const currentState: StoryState = { messages, storyProgress, inventory, discoveries };
+            db.saveStoryState(currentUser.id, selectedBook.id, currentState);
+        }, 1500); // Debounce for 1.5 seconds
+
+        return () => {
+            if (storySaveTimeoutRef.current) clearTimeout(storySaveTimeoutRef.current);
+        };
+    }, [messages, storyProgress, inventory, discoveries, currentUser, selectedBook, view]);
+
+    // --- AUTOSAVE Chat History ---
+    const chatSaveTimeoutRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (!isInitialDataLoaded.current || !currentUser || !selectedCharacter || view !== 'chat') {
+            return;
+        }
+
+        if (chatSaveTimeoutRef.current) clearTimeout(chatSaveTimeoutRef.current);
+
+        chatSaveTimeoutRef.current = window.setTimeout(() => {
+            db.saveChatHistory(currentUser.id, selectedCharacter.id, messages);
+        }, 1500); // Debounce for 1.5 seconds
+
+        return () => {
+            if (chatSaveTimeoutRef.current) clearTimeout(chatSaveTimeoutRef.current);
+        };
+    }, [messages, currentUser, selectedCharacter, view]);
+
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -222,15 +265,12 @@ export default function App() {
 
   const handleLoginSuccess = (user: User) => {
       setCurrentUser(user);
-      localStorage.setItem('storify_user_id', user.id);
+      localStorage.setItem('storify_user', JSON.stringify(user));
   };
   
   const handleBookSelect = (book: Book) => setSelectedBook(book);
   
   const handleBackToLibraryGrid = () => {
-    // This function's only job is to navigate from the book detail screen
-    // back to the library grid. It should NOT save state, as that can
-    // accidentally overwrite valid progress with an empty state.
     setSelectedBook(null);
     setSelectedCharacter(null);
     setMessages([]);
@@ -270,20 +310,20 @@ export default function App() {
   };
 
   const handleSetView = async (newView: View) => {
-    // Save progress *before* changing the view.
-    if (view === 'story' && newView !== 'story' && selectedBook && currentUser) {
-        const currentState: StoryState = { messages, storyProgress, inventory, discoveries };
-        setStoryStates(prev => ({ ...prev, [selectedBook.id]: currentState }));
-        await supabase.saveStoryState(currentUser.id, selectedBook.id, currentState);
+    if (!currentUser) return;
+    
+    // Update local state caches for smoother UI transitions before view change
+    if (view === 'story' && newView !== 'story' && selectedBook) {
+        // Only update local state if progress has actually been made.
+        if (discoveries.length > 0) {
+            const currentState: StoryState = { messages, storyProgress, inventory, discoveries };
+            setStoryStates(prev => ({...prev, [selectedBook.id]: currentState}));
+        }
     }
-    if (view === 'chat' && newView !== 'chat' && selectedCharacter && currentUser) {
-        const currentMessages = messages;
-        setChatHistories(prev => ({ ...prev, [selectedCharacter.id]: currentMessages }));
-        await supabase.saveChatHistory(currentUser.id, selectedCharacter.id, currentMessages);
+    if (view === 'chat' && newView !== 'chat' && selectedCharacter) {
+        setChatHistories(prev => ({...prev, [selectedCharacter.id]: messages}));
     }
     
-    // If navigating to the library, always go to the grid view by clearing the selected book.
-    // This provides a consistent UX and prevents race conditions with stale props.
     if (newView === 'library') {
       setSelectedBook(null);
       setSelectedCharacter(null);
@@ -307,11 +347,9 @@ export default function App() {
   }
   
   const handleBackToChatsList = () => {
-    // Capture and save state before navigating.
-    if (selectedCharacter && currentUser) {
-        const currentMessages = messages;
-        setChatHistories(prev => ({ ...prev, [selectedCharacter.id]: currentMessages }));
-        supabase.saveChatHistory(currentUser.id, selectedCharacter.id, currentMessages);
+    if (!currentUser) return;
+    if (selectedCharacter) {
+        setChatHistories(prev => ({ ...prev, [selectedCharacter.id]: messages }));
     }
     setSelectedCharacter(null);
     setView('chatsList');
@@ -324,34 +362,56 @@ export default function App() {
     handleSendMessage(result, { isStoryMode: true });
   };
   
-  const handleAddDiscoveryPost = async (postData: Omit<DiscoveryPost, 'id' | 'author' | 'created_at' | 'likes' | 'replies'>) => {
+  const handleAddPost = async (postData: Omit<DiscoveryPost, 'id' | 'author' | 'created_at' | 'likes' | 'replies'>) => {
     if (!currentUser) return;
-    await supabase.createDiscoveryPost(postData, currentUser.id);
-    const updatedPosts = await supabase.getDiscoveryPosts();
-    setDiscoveryPosts(updatedPosts);
+    const newPost = await db.addDiscoveryPost({
+        ...postData,
+        author_id: currentUser.id,
+    });
+    if (newPost) {
+        setPosts(prev => [newPost, ...prev]);
+    }
   };
 
-  const handleLikeDiscoveryPost = (postId: string) => {
+  const handleLikePost = async (postId: string) => {
     if (!currentUser) return;
-    const post = discoveryPosts.find(p => p.id === postId);
-    if (!post) return;
     
-    const isLiked = post.likes.includes(currentUser.id);
-    supabase.togglePostLike(postId, currentUser.id, isLiked);
+    // Optimistic UI update for instant feedback
+    setPosts(prev => prev.map(p => {
+        if (p.id !== postId) return p;
+        const isLiked = p.likes.includes(currentUser.id);
+        const newLikes = isLiked
+            ? p.likes.filter(id => id !== currentUser.id)
+            : [...p.likes, currentUser.id];
+        return { ...p, likes: newLikes };
+    }));
 
-    setDiscoveryPosts(prevPosts => 
-        prevPosts.map(p => p.id === postId ? { ...p, likes: isLiked ? p.likes.filter(id => id !== currentUser.id) : [...p.likes, currentUser.id] } : p)
-    );
+    // Actual database call
+    await db.togglePostLike(postId, currentUser.id);
+  };
+  
+  const handleAddReply = async (postId: string, replyText: string) => {
+    if (!currentUser) return;
+     const newReply = await db.addPostReply({
+        post_id: postId,
+        author_id: currentUser.id,
+        content: replyText,
+     });
+    if (newReply) {
+        setPosts(prev => prev.map(p => {
+            if (p.id !== postId) return p;
+            return { ...p, replies: [...p.replies, newReply] };
+        }));
+    }
   };
 
-  const handleAddDiscoveryReply = async (postId: string, replyText: string) => {
+  const handleSuggestNovel = async (suggestionText: string) => {
     if (!currentUser) return;
-    const newReply = await supabase.addReplyToPost(postId, replyText, currentUser.id);
-    if(newReply) {
-        const updatedReply = { ...newReply, author: { id: currentUser.id, name: currentUser.name, avatar_url: currentUser.avatar_url }};
-        setDiscoveryPosts(prevPosts => 
-            prevPosts.map(post => post.id === postId ? { ...post, replies: [...post.replies, updatedReply] } : post)
-        );
+    const success = await db.addNovelSuggestion({ title: suggestionText, author: '', user_id: currentUser.id });
+    if (success) {
+      setNotification('🌟 شكرًا لمساهمتك! اقتراحك سيجعل التطبيق أمتع.');
+    } else {
+      setNotification('حدث خطأ أثناء إرسال الاقتراح.');
     }
   };
 
@@ -364,13 +424,14 @@ export default function App() {
     if (!characterForAPI) return;
 
     const text = typeof choice === 'string' ? choice : choice.text;
-    const newUserMessage: Message = { role: Role.USER, content: text };
+    const newUserMessage: Message = { role: Role.USER, content: text, timestamp: Date.now() };
     
+    // For the API, we always include the user's message for context.
     const messagesForApi = [...messages, newUserMessage];
 
-    const isFirstStoryMessage = messages.length === 0 && isStoryMode;
-    if (!isStoryMode || isFirstStoryMessage) {
-        setMessages(messagesForApi);
+    // For the UI, only add the user's message if it's NOT story mode.
+    if (!isStoryMode) {
+      setMessages(messagesForApi);
     }
 
     setIsLoading(true);
@@ -382,6 +443,7 @@ export default function App() {
     
     try {
       const responseMessage = await getCharacterResponse(systemInstruction, messagesForApi);
+      responseMessage.timestamp = Date.now();
       
        if (isStoryMode && typeof choice !== 'string') {
         const newDiscovery: Discovery = { choiceText: choice.text, category: choice.category, outcome: responseMessage.impact || 'مسار القصة يتغير...' };
@@ -390,7 +452,7 @@ export default function App() {
 
       if (responseMessage.progressIncrement) setStoryProgress(prev => Math.min(prev + responseMessage.progressIncrement!, 100));
       if (responseMessage.inventoryAdd) {
-        setInventory(prev => [...prev, responseMessage.inventoryAdd!]);
+        setInventory(prev => [...new Set([...prev, responseMessage.inventoryAdd!])]);
         setNotification(`تمت إضافة: ${responseMessage.inventoryAdd}`);
       }
       if (responseMessage.inventoryRemove) {
@@ -408,9 +470,14 @@ export default function App() {
       if (responseMessage.fateRoll) {
         setFateRollChallenge(responseMessage.fateRoll);
         setIsLoading(false);
-        return; 
+        // In story mode, we don't display the user's choice, so there's no message to append to.
+        // We just show the modal. The challenge text is in the modal.
+        return;
       }
 
+      // Add the AI's response to the messages list.
+      // If in story mode, this adds the narration directly after the previous narration.
+      // If in chat mode, this adds the character response after the user's message.
       setMessages(prev => [...prev, responseMessage]);
 
     } catch (e) {
@@ -424,8 +491,9 @@ export default function App() {
   const handleSaveQuote = (quote: string) => setNotification('تم حفظ الاقتباس بنجاح!');
   
   if (isSplashScreen) return <SplashScreen />;
-  if (appIsLoading) return <AppLoader message="جاري تحميل عالمك..." />;
   if (!currentUser) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  if (isDataLoading) return <AppLoader message="جاري مزامنة بياناتك من السحابة..." />;
+
 
   const renderCurrentView = () => {
     switch (view) {
@@ -437,19 +505,25 @@ export default function App() {
         );
       case 'story':
         return selectedBook ? (
-            <StoryView message={messages[messages.length - 1] || { role: Role.NARRATOR, content: '...'}} progress={storyProgress} isLoading={isLoading} onChoiceSelect={(choice) => handleSendMessage(choice, {isStoryMode: true})} onOpenInventory={() => { setModalTitle("الحقيبة"); setModalContent(inventory.length > 0 ? <ul className="list-disc pr-5 space-y-2">{inventory.map((item, i) => <li key={i}>{item}</li>)}</ul> : <p>حقيبتك فارغة.</p>); }} inventoryCount={inventory.length} onSaveQuote={handleSaveQuote} discoveries={discoveries} />
+            <StoryView message={messages[messages.length - 1] || { role: Role.NARRATOR, content: 'جاري بدء القصة...'}} progress={storyProgress} isLoading={isLoading} onChoiceSelect={(choice) => handleSendMessage(choice, {isStoryMode: true})} onOpenInventory={() => { setModalTitle("الحقيبة"); setModalContent(inventory.length > 0 ? <ul className="list-disc pr-5 space-y-2">{inventory.map((item, i) => <li key={i}>{item}</li>)}</ul> : <p>حقيبتك فارغة.</p>); }} inventoryCount={inventory.length} onSaveQuote={handleSaveQuote} discoveries={discoveries} />
         ) : <p>Book not selected</p>;
       case 'profile':
-         return <ProfileView user={currentUser} stats={{ storiesStarted: Object.keys(storyStates).length, achievementsUnlocked: unlockedAchievements.length, thinkingProfile: 'المفكر الوجودي' }} unlockedAchievements={unlockedAchievements} allBooks={allBooks} storyProgress={Object.entries(storyStates).reduce((acc, [bookId, state]) => ({...acc, [bookId]: (state as StoryState).storyProgress}), {} as Record<string, number>)} />;
+         return <ProfileView user={currentUser} allUsers={allUsers} stats={{ storiesStarted: Object.keys(storyStates).length, achievementsUnlocked: unlockedAchievements.length }} unlockedAchievements={unlockedAchievements} />;
        case 'behaviorAnalysis':
         return selectedCharacter ? <BehaviorAnalysisView discoveries={discoveries} character={selectedCharacter} analysisText={behaviorAnalysisText} isLoading={isAnalysisLoading} /> : <p>Character not selected</p>;
        case 'chatsList':
         return <ChatsListView chatHistories={chatHistories} books={allBooks} onCharacterSelect={handleCharacterSelect} />;
       case 'discover':
-        return <DiscoverView posts={discoveryPosts} currentUser={currentUser} onAddPost={handleAddDiscoveryPost} onLikePost={handleLikeDiscoveryPost} onAddReply={handleAddDiscoveryReply} />;
+        return <DiscoverView
+            posts={posts}
+            currentUser={currentUser}
+            onAddPost={handleAddPost}
+            onLikePost={handleLikePost}
+            onAddReply={handleAddReply}
+        />;
       case 'library':
       default:
-        return <LibraryScreen books={allBooks} selectedBook={selectedBook} storyProgress={Object.entries(storyStates).reduce((acc, [bookId, state]) => ({...acc, [bookId]: (state as StoryState).storyProgress}), {} as Record<string, number>)} onBookSelect={handleBookSelect} onCharacterSelect={(char) => handleCharacterSelect(char, selectedBook!)} onStartStory={handleStartStory} onBackToGrid={handleBackToLibraryGrid} />;
+        return <LibraryScreen books={allBooks} selectedBook={selectedBook} storyStates={storyStates} onBookSelect={handleBookSelect} onCharacterSelect={(char) => handleCharacterSelect(char, selectedBook!)} onStartStory={handleStartStory} onBackToGrid={handleBackToLibraryGrid} onSuggestNovel={handleSuggestNovel} currentUser={currentUser} />;
     }
   };
 

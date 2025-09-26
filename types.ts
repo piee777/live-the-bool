@@ -128,61 +128,6 @@ export interface User {
   global_progress?: number;
 }
 
-// FIX: Added missing community feature types to resolve import errors.
-export interface LeaderboardUser {
-  id: string;
-  name: string;
-  avatar_url?: string;
-  rank: number;
-  score: number;
-}
-
-export interface Suggestion {
-  id: string;
-  text: string;
-  authorName: string;
-  authorId: string;
-  votes: number;
-  upvotes: number;
-  downvotes: number;
-}
-
-export interface DebateSide {
-  title: string;
-  argument: string;
-  votes: number;
-}
-
-export interface DebateTopic {
-  id: string;
-  title: string;
-  sides: {
-    sideA: DebateSide;
-    sideB: DebateSide;
-  };
-}
-
-export interface NovelStat {
-  title: string;
-  readCount: number;
-}
-
-export interface DecisionOption {
-  text: string;
-  percentage: number;
-}
-
-export interface KeyDecision {
-  question: string;
-  optionA: DecisionOption;
-  optionB: DecisionOption;
-}
-
-export interface CommunityStats {
-  mostReadNovels: NovelStat[];
-  keyDecision: KeyDecision;
-}
-
 // FIX: Added missing type definitions to resolve import errors.
 export interface DiaryEntry {
   character: string;
@@ -219,4 +164,54 @@ export interface ChallengeAnswer {
 export interface DailyChallenge {
     question: string;
     answers: ChallengeAnswer[];
+}
+// FIX: Added missing type definitions for community features to resolve import errors.
+export interface LeaderboardUser extends User {
+  score: number;
+  rank: number;
+}
+
+export interface Suggestion {
+  id: string;
+  text: string;
+  authorName: string;
+  authorId: string;
+  votes: number;
+  upvotes: number;
+  downvotes: number;
+}
+
+export interface DebateTopic {
+  id: string;
+  title: string;
+  sides: {
+    sideA: {
+      title: string;
+      argument: string;
+      votes: number;
+    };
+    sideB: {
+      title: string;
+      argument: string;
+      votes: number;
+    };
+  };
+}
+
+export interface CommunityStats {
+  mostReadNovels: {
+    title: string;
+    readCount: number;
+  }[];
+  keyDecision: {
+    question: string;
+    optionA: {
+      text: string;
+      percentage: number;
+    };
+    optionB: {
+      text: string;
+      percentage: number;
+    };
+  };
 }

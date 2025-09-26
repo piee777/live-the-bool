@@ -1,37 +1,72 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { User, Book } from '../types';
 import { AchievementsGrid } from './Achievements';
+import { UsersModal } from './UsersModal';
+
+const VerifiedBadge: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        className={`${className} inline-block mr-2 text-sky-400`}
+        aria-hidden="true"
+    >
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+    </svg>
+);
 
 interface ProfileViewProps {
   user: User;
+  allUsers: User[];
   stats: {
     storiesStarted: number;
     achievementsUnlocked: number;
-    thinkingProfile: string;
   };
   unlockedAchievements: string[];
-  allBooks: Book[];
-  storyProgress: Record<string, number>;
 }
 
 const getPersonalityData = (achievements: string[]) => {
     const weights = {
-        'تأملي': 1, 'عملي': 1, 'متمرد': 1, 'وجودي': 1
+        'تأملي': 0, 'عملي': 0, 'متمرد': 0, 'وجودي': 0
     };
     if (achievements.includes('المفكر العبثي')) { weights['تأملي'] += 3; weights['وجودي'] += 2; }
     if (achievements.includes('صانع القرار')) weights['عملي'] += 3;
     if (achievements.includes('الفيلسوف الوجودي')) { weights['وجودي'] += 3; weights['تأملي'] += 1; }
     if (achievements.includes('رفيق المعاناة')) weights['تأملي'] += 2;
 
-    const total = Object.values(weights).reduce((a, b) => a + b, 0);
-    
+    // Max possible weights with base 1: contemplative: 7, pragmatic: 4, existential: 6, rebellious: 1
+    // Divisors are kept the same to maintain the relative scale.
     return [
-        { axis: 'تأملي', value: weights['تأملي'] / 5, color: '#d97706' }, // amber
-        { axis: 'عملي', value: weights['عملي'] / 5, color: '#38bdf8' }, // blue
-        { axis: 'وجودي', value: weights['وجودي'] / 5, color: '#818cf8' }, // purple
-        { axis: 'متمرد', value: weights['متمرد'] / 5, color: '#991b1b' }, // crimson
+        { axis: 'تأملي', value: weights['تأملي'] / 7, color: '#d97706' }, // amber
+        { axis: 'عملي', value: weights['عملي'] / 4, color: '#38bdf8' }, // blue
+        { axis: 'وجودي', value: weights['وجودي'] / 6, color: '#818cf8' }, // purple
+        { axis: 'متمرد', value: weights['متمرد'] / 1, color: '#991b1b' }, // crimson
     ];
 };
+
+const getThinkingProfileTitle = (achievements: string[]): string => {
+    // Give priority to specific, high-level achievements for titles
+    if (achievements.includes('الفيلسوف الوجودي')) return 'الفيلسوف الوجودي';
+    if (achievements.includes('المفكر العبثي')) return 'المفكر العبثي';
+
+    // If no specific title achievement, analyze personality trends
+    const personalityData = getPersonalityData(achievements);
+    if (achievements.length > 2 && personalityData.length > 0) { // Require some progress
+        const mainTrait = [...personalityData].sort((a, b) => b.value - a.value)[0];
+        // The value is normalized between 0 and 1. We need a clear dominant trait.
+        if (mainTrait && mainTrait.value >= 0.7) { 
+            switch (mainTrait.axis) {
+                case 'وجودي': return 'المفكر الوجودي';
+                case 'تأملي': return 'المتأمل العميق';
+                case 'عملي': return 'الاستراتيجي العملي';
+                case 'متمرد': return 'الروح المتمردة';
+            }
+        }
+    }
+    
+    return 'قارئ'; // Default title for new users or those with balanced profiles
+};
+
 
 const RadarChart: React.FC<{ data: { axis: string; value: number; color: string }[] }> = ({ data }) => {
     const size = 200;
@@ -85,9 +120,26 @@ const RadarChart: React.FC<{ data: { axis: string; value: number; color: string 
 };
 
 export const ProfileView: React.FC<ProfileViewProps> = (props) => {
-  const { user, stats, unlockedAchievements, allBooks, storyProgress } = props;
-  const playedBooks = allBooks.filter(book => (storyProgress[book.id] || 0) > 0);
+  const { user, stats, unlockedAchievements, allUsers } = props;
+  const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
   const personalityData = getPersonalityData(unlockedAchievements);
+  const thinkingProfileTitle = getThinkingProfileTitle(unlockedAchievements);
+  
+  // Special titles for specific users
+  const specialTitles: Record<string, string> = {
+    'bensadel': 'المطور',
+    'أرسطو': 'الفيلسوف الوجودي',
+    'سيمون': 'صانعة القرار',
+    'سارتر': 'المفكر العبثي',
+  };
+
+  const modalUsers = allUsers.map(u => ({
+    id: u.id,
+    name: u.name,
+    avatar_url: u.avatar_url,
+    title: specialTitles[u.name] || 'قارئ', // Default title is 'Reader'
+  }));
+
 
   return (
     <div className="p-4 sm:p-6 w-full h-full overflow-y-auto animate-fade-in bg-brand-bg-dark">
@@ -97,8 +149,8 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
         <div className="relative flex flex-col items-center gap-4 text-center p-8 bg-brand-surface-dark/50 rounded-2xl overflow-hidden border border-white/10">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/az-subtle.png')] opacity-10"></div>
             <div className="relative w-28 h-28 rounded-full flex items-center justify-center shadow-lg
-                         p-1 bg-gradient-to-tr from-brand-purple via-brand-crimson to-brand-amber animate-pulse-slow">
-                <div className="w-full h-full rounded-full bg-brand-bg-dark p-1">
+                         p-1 bg-gradient-to-tr from-amber-400 via-red-500 to-yellow-400">
+                <div className="w-full h-full rounded-full bg-brand-bg-dark p-0.5">
                     {user.avatar_url ? (
                         <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover rounded-full" />
                     ) : (
@@ -109,8 +161,14 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
                 </div>
             </div>
             <div>
-                <h2 className="text-3xl font-bold font-arabic">{user.name}</h2>
-                <p className="text-amber-400 font-bold text-lg font-arabic mt-1">{stats.thinkingProfile}</p>
+                <h2 className="text-3xl font-bold font-arabic flex items-center justify-center">
+                    {user.name}
+                    {user.name === 'bensadel' && <VerifiedBadge className="w-6 h-6" />}
+                </h2>
+                <p className="text-amber-400 font-bold text-lg font-arabic mt-1">{thinkingProfileTitle}</p>
+                <p className="text-brand-text-medium text-xs font-arabic mt-2 max-w-xs mx-auto">
+                    يتغير هذا اللقب بناءً على قراراتك في القصص وتحليل شخصيتك.
+                </p>
             </div>
         </div>
 
@@ -132,27 +190,27 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
             </div>
         </div>
         
-        {/* Story Progress */}
+        {/* Community Button */}
         <div>
-          <h3 className="text-xl font-bold font-arabic mb-4 text-center">تقدمي في الروايات</h3>
-          <div className="space-y-4">
-            {playedBooks.length > 0 ? playedBooks.map(book => (
-              <div key={book.id} className="bg-brand-surface-dark/50 p-4 rounded-lg border border-white/10">
-                <div className="flex justify-between items-center mb-2">
-                    <p className="font-bold text-brand-text-light font-arabic">{book.title}</p>
-                    <p className="font-semibold text-amber-400 font-mono text-sm">{storyProgress[book.id]}%</p>
+            <h3 className="text-xl font-bold font-arabic mb-4 text-center">المجتمع</h3>
+            <button 
+                onClick={() => setIsUsersModalOpen(true)}
+                className="w-full flex items-center p-4 gap-4 bg-brand-surface-dark/50 hover:bg-brand-surface-dark rounded-xl transition-colors duration-200 border border-white/10 text-left"
+            >
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-tr from-brand-amber to-brand-crimson flex items-center justify-center text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                </svg>
                 </div>
-                <div className="w-full bg-brand-bg-dark rounded-full h-2">
-                    <div 
-                        className="bg-gradient-crimson-amber h-2 rounded-full transition-all duration-500" 
-                        style={{ width: `${storyProgress[book.id]}%` }}
-                    ></div>
+                <div>
+                <p className="font-bold text-lg font-arabic text-brand-text-light">
+                    تصفح المستخدمين
+                </p>
+                <p className="text-sm text-brand-text-medium font-arabic">
+                    شاهد الألقاب والإنجازات لأبرز أعضاء المجتمع.
+                </p>
                 </div>
-              </div>
-            )) : (
-              <p className="text-center text-brand-text-medium font-arabic p-4">لم تبدأ أي رواية بعد. اختر واحدة من المكتبة!</p>
-            )}
-          </div>
+            </button>
         </div>
 
         {/* Achievements */}
@@ -160,7 +218,28 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
              <h3 className="text-xl font-bold font-arabic mb-4 text-center">شارة الإنجازات</h3>
              <AchievementsGrid unlockedAchievements={unlockedAchievements} />
         </div>
+
+        {/* About Storify Section */}
+        <div className="pt-4 pb-4">
+            <h3 className="text-xl font-bold font-arabic mb-4 text-center">عن Storify</h3>
+            <div className="bg-brand-surface-dark p-6 rounded-xl border border-white/10 space-y-4 text-center">
+                <p className="font-arabic text-brand-text-medium leading-relaxed">
+                    Storify ليس مجرد تطبيق قراءة، بل هو دعوة لتعيش الروايات التي تحبها. هنا، يمكنك التحدث مع شخصياتك المفضلة، اتخاذ قرارات تؤثر في مسار القصة، ورؤية كيف تعكس اختياراتك شخصيتك الأدبية.
+                </p>
+                <p className="font-arabic text-brand-text-medium leading-relaxed">
+                    <strong className="block text-amber-400 mb-1">كيف يعمل تحليل الشخصية؟</strong> 
+                    المخطط الذي تراه ليس اختبارًا نفسيًا، بل هو مرآة إبداعية تعكس ميولك وقراراتك ضمن عوالم الروايات الفلسفية التي تتفاعل معها. كل إنجاز تحققه يساهم في تشكيل هذه الخريطة الفريدة لشخصيتك السردية.
+                </p>
+            </div>
+        </div>
+
       </div>
+       <UsersModal 
+        isOpen={isUsersModalOpen} 
+        onClose={() => setIsUsersModalOpen(false)} 
+        users={modalUsers} 
+        currentUser={user}
+      />
     </div>
   );
 };
