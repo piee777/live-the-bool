@@ -69,10 +69,10 @@ const getThinkingProfileTitle = (achievements: string[]): string => {
 
 
 const RadarChart: React.FC<{ data: { axis: string; value: number; color: string }[] }> = ({ data }) => {
-    const size = 200;
+    const size = 240; // Increased SVG canvas size for padding
     const center = size / 2;
     const levels = 5;
-    const radius = size * 0.4;
+    const radius = size * 0.35; // Approx 84px.
     const angleSlice = (Math.PI * 2) / data.length;
 
     const points = data.map((d, i) => {
@@ -83,7 +83,7 @@ const RadarChart: React.FC<{ data: { axis: string; value: number; color: string 
     }).join(' ');
 
     return (
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <svg viewBox={`0 0 ${size} ${size}`}>
             {/* Grid */}
             {[...Array(levels)].map((_, levelIndex) => (
                 <polygon
@@ -110,10 +110,21 @@ const RadarChart: React.FC<{ data: { axis: string; value: number; color: string 
              {/* Labels */}
              {data.map((d, i) => {
                 const angle = angleSlice * i - Math.PI / 2;
-                const r = radius * 1.2;
-                const x = center + r * Math.cos(angle);
-                const y = center + r * Math.sin(angle);
-                return <text key={i} x={x} y={y} fill="#a8a29e" fontSize="10" textAnchor="middle" dominantBaseline="middle" className="font-arabic">{d.axis}</text>
+                const labelRadius = radius + 10; // Position anchor point slightly outside the chart
+                const x = center + labelRadius * Math.cos(angle);
+                const y = center + labelRadius * Math.sin(angle);
+                
+                let textAnchor: "start" | "end" | "middle" = "middle";
+                const cosAngle = Math.cos(angle);
+
+                // cosAngle is ~0 for top/bottom, 1 for right, -1 for left
+                if (cosAngle > 0.5) { // Right side
+                    textAnchor = "start";
+                } else if (cosAngle < -0.5) { // Left side
+                    textAnchor = "end";
+                }
+
+                return <text key={i} x={x} y={y} fill="#a8a29e" fontSize="14" textAnchor={textAnchor} dominantBaseline="middle" className="font-arabic">{d.axis}</text>
             })}
         </svg>
     );
@@ -176,16 +187,8 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
         <div className="bg-brand-surface-dark p-4 sm:p-6 rounded-xl border border-white/10">
             <h3 className="text-xl font-bold font-arabic mb-4 text-center">تحليل الشخصية العام</h3>
             <div className="flex flex-col md:flex-row items-center justify-center gap-6">
-                <div className="w-48 h-48 md:w-56 md:h-56 flex-shrink-0">
+                <div className="w-full max-w-[250px] md:max-w-[300px] flex-shrink-0">
                     <RadarChart data={personalityData} />
-                </div>
-                <div className="w-full grid grid-cols-2 gap-3">
-                    {personalityData.map(p => (
-                        <div key={p.axis} className="flex items-center gap-2 bg-brand-bg-dark p-2 rounded-md border border-white/5">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }}></div>
-                            <span className="font-arabic text-sm text-brand-text-medium">{p.axis}</span>
-                        </div>
-                    ))}
                 </div>
             </div>
         </div>
@@ -228,7 +231,7 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
                 </p>
                 <p className="font-arabic text-brand-text-medium leading-relaxed">
                     <strong className="block text-amber-400 mb-1">كيف يعمل تحليل الشخصية؟</strong> 
-                    المخطط الذي تراه ليس اختبارًا نفسيًا، بل هو مرآة إبداعية تعكس ميولك وقراراتك ضمن عوالم الروايات الفلسفية التي تتفاعل معها. كل إنجاز تحققه يساهم في تشكيل هذه الخريطة الفريدة لشخصيتك السردية.
+                    المخطط الذي تراه ليس اختبارًا نفسيًا، بل هو مرآة إبداعية تعكس ميولك وقراراتك ضمن عوالم الروايات التي تتفاعل معها. كل إنجاز تحققه يساهم في تشكيل هذه الخريطة الفريدة لشخصيتك السردية.
                 </p>
             </div>
         </div>
