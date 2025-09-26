@@ -20,6 +20,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["*.ts", "*.tsx", "components/**/*.tsx", "services/**/*.ts"],
+  "exclude": ["netlify"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
