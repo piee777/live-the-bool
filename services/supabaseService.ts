@@ -185,7 +185,9 @@ export const getStoryStates = async (userId: string): Promise<Record<string, Sto
         // would cause downstream type errors.
         acc[state.book_id] = {
             messages: (Array.isArray(state.messages) ? state.messages : []) as Message[],
-            storyProgress: state.story_progress || 0,
+            // FIX: The `story_progress` from Supabase could be a string or null.
+            // Explicitly convert to a number to match the `StoryState` type.
+            storyProgress: Number(state.story_progress || 0),
             inventory: (Array.isArray(state.inventory) ? state.inventory : []) as string[],
             discoveries: (Array.isArray(state.discoveries) ? state.discoveries : []) as Discovery[],
         };

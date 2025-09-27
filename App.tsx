@@ -129,7 +129,10 @@ export default function App() {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [storyStates, setStoryStates] = useState<Record<string, StoryState>>({});
   const [chatHistories, setChatHistories] = useState<Record<string, Message[]>>({});
-  const [posts, setPosts] = useState<DiscoveryPost[]>([]);
+  
+  // Discover State
+  const [discoveryPosts, setDiscoveryPosts] = useState<DiscoveryPost[]>([]);
+
 
   const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
   const [globalProgress, setGlobalProgress] = useState<number>(0);
@@ -185,20 +188,17 @@ export default function App() {
             booksData, 
             storyStatesData, 
             chatHistoriesData,
-            postsData,
             usersData,
         ] = await Promise.all([
             db.getBooks(),
             db.getStoryStates(currentUser.id),
             db.getChatHistories(currentUser.id),
-            db.getDiscoveryPosts(),
             db.getAllUsers(),
         ]);
 
         setAllBooks(booksData);
         setStoryStates(storyStatesData);
         setChatHistories(chatHistoriesData);
-        setPosts(postsData);
         setAllUsers(usersData);
         
         setIsDataLoading(false);
@@ -208,6 +208,19 @@ export default function App() {
 
   }, [currentUser]);
   
+  useEffect(() => {
+    if (view === 'discover') {
+      const fetchPosts = async () => {
+        setIsDataLoading(true);
+        const posts = await db.getDiscoveryPosts();
+        setDiscoveryPosts(posts);
+        setIsDataLoading(false);
+      };
+      fetchPosts();
+    }
+  }, [view]);
+
+
   useEffect(() => {
       if (!isDataLoading) {
           isInitialDataLoaded.current = true;
@@ -220,10 +233,8 @@ export default function App() {
       setGlobalProgress(0);
       return;
     }
-    // FIX: The `storyProgress` property from the state could be a string or not a number,
-    // leading to incorrect calculations. Using `Number()` ensures that the values are
-    // added as numbers, preventing string concatenation and fixing the subsequent division error.
-    const totalProgress = startedStories.reduce((sum, state) => sum + Number((state as StoryState).storyProgress || 0), 0);
+    // FIX: The `storyProgress` property is now guaranteed to be a number by `getStoryStates`.
+    const totalProgress = startedStories.reduce((sum: number, state: StoryState) => sum + (state.storyProgress || 0), 0);
     const averageProgress = totalProgress / allBooks.length;
     setGlobalProgress(averageProgress);
   }, [storyStates, allBooks]);
@@ -376,49 +387,6 @@ export default function App() {
     handleSendMessage(result, { isStoryMode: true });
   };
   
-  const handleAddPost = async (postData: Omit<DiscoveryPost, 'id' | 'author' | 'created_at' | 'likes' | 'replies'>) => {
-    if (!currentUser) return;
-    const newPost = await db.addDiscoveryPost({
-        ...postData,
-        author_id: currentUser.id,
-    });
-    if (newPost) {
-        setPosts(prev => [newPost, ...prev]);
-    }
-  };
-
-  const handleLikePost = async (postId: string) => {
-    if (!currentUser) return;
-    
-    // Optimistic UI update for instant feedback
-    setPosts(prev => prev.map(p => {
-        if (p.id !== postId) return p;
-        const isLiked = p.likes.includes(currentUser.id);
-        const newLikes = isLiked
-            ? p.likes.filter(id => id !== currentUser.id)
-            : [...p.likes, currentUser.id];
-        return { ...p, likes: newLikes };
-    }));
-
-    // Actual database call
-    await db.togglePostLike(postId, currentUser.id);
-  };
-  
-  const handleAddReply = async (postId: string, replyText: string) => {
-    if (!currentUser) return;
-     const newReply = await db.addPostReply({
-        post_id: postId,
-        author_id: currentUser.id,
-        content: replyText,
-     });
-    if (newReply) {
-        setPosts(prev => prev.map(p => {
-            if (p.id !== postId) return p;
-            return { ...p, replies: [...p.replies, newReply] };
-        }));
-    }
-  };
-
   const handleSuggestNovel = async (suggestionText: string) => {
     if (!currentUser) return;
     const success = await db.addNovelSuggestion({ title: suggestionText, author: '', user_id: currentUser.id });
@@ -427,6 +395,39 @@ export default function App() {
     } else {
       setNotification('حدث خطأ أثناء إرسال الاقتراح.');
     }
+  };
+
+  const handleAddPost = async (postData: Omit<DiscoveryPost, 'id' | 'author' | 'created_at' | 'likes' | 'replies'>) => {
+    if (!currentUser) return;
+    const newPost = await db.addDiscoveryPost({ ...postData, author_id: currentUser.id });
+    if (newPost) {
+        setDiscoveryPosts(prev => [newPost, ...prev]);
+    }
+  };
+
+  const handleLikePost = async (postId: string) => {
+      if (!currentUser) return;
+      const result = await db.togglePostLike(postId, currentUser.id);
+      if (result) {
+          setDiscoveryPosts(prev => prev.map(p => {
+              if (p.id !== postId) return p;
+              const newLikes = result.liked 
+                  ? [...p.likes, currentUser.id]
+                  : p.likes.filter(id => id !== currentUser.id);
+              return { ...p, likes: newLikes };
+          }));
+      }
+  };
+
+  const handleAddReply = async (postId: string, replyText: string) => {
+      if (!currentUser) return;
+      const newReply = await db.addPostReply({ post_id: postId, author_id: currentUser.id, content: replyText });
+      if (newReply) {
+          setDiscoveryPosts(prev => prev.map(p => {
+              if (p.id !== postId) return p;
+              return { ...p, replies: [...p.replies, newReply] };
+          }));
+      }
   };
 
   const handleSendMessage = async (
@@ -506,7 +507,7 @@ export default function App() {
   
   if (isSplashScreen) return <SplashScreen />;
   if (!currentUser) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
-  if (isDataLoading) return <AppLoader />;
+  if (isDataLoading && !isInitialDataLoaded.current) return <AppLoader />;
 
 
   const renderCurrentView = () => {
@@ -528,13 +529,15 @@ export default function App() {
        case 'chatsList':
         return <ChatsListView chatHistories={chatHistories} books={allBooks} onCharacterSelect={handleCharacterSelect} />;
       case 'discover':
-        return <DiscoverView
-            posts={posts}
-            currentUser={currentUser}
-            onAddPost={handleAddPost}
-            onLikePost={handleLikePost}
-            onAddReply={handleAddReply}
-        />;
+        return (
+            <DiscoverView 
+                posts={discoveryPosts}
+                currentUser={currentUser}
+                onAddPost={handleAddPost}
+                onLikePost={handleLikePost}
+                onAddReply={handleAddReply}
+            />
+        );
       case 'library':
       default:
         return <LibraryScreen books={allBooks} selectedBook={selectedBook} storyStates={storyStates} onBookSelect={handleBookSelect} onCharacterSelect={(char) => handleCharacterSelect(char, selectedBook!)} onStartStory={handleStartStory} onBackToGrid={handleBackToLibraryGrid} onSuggestNovel={handleSuggestNovel} currentUser={currentUser} />;
