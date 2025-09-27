@@ -1,13 +1,7 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-
-// استدعاء المفتاح من متغير البيئة
-const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-if (!geminiKey) {
-  console.warn("API key غير موجود. بعض الوظائف لن تعمل.");
-}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -17,6 +11,6 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App geminiKey={geminiKey} />
+    <App />
   </React.StrictMode>
 );
