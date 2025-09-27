@@ -222,6 +222,7 @@ export default function App() {
     }
     // FIX: Ensure `storyProgress` is treated as a number. It could be incorrectly
     // inferred as a string from the data source, leading to concatenation instead of addition.
+    // FIX: Explicitly convert storyProgress to a number to resolve arithmetic operation errors.
     const totalProgress = startedStories.reduce((sum, state) => sum + Number((state as StoryState).storyProgress || 0), 0);
     const averageProgress = totalProgress / allBooks.length;
     setGlobalProgress(averageProgress);
