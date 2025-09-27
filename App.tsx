@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Book, Character, Message, Role, User, StoryChoice, Discovery, StoryState, DiscoveryPost } from './types';
 import { LibraryScreen } from './components/BookDetails';
@@ -234,10 +235,12 @@ export default function App() {
       setGlobalProgress(0);
       return;
     }
-    // FIX: The `storyProgress` property from storyStates can be a string at runtime, which
-    // causes string concatenation instead of addition. Explicitly cast to Number
-    // to ensure a correct sum.
-    const totalProgress = startedStories.reduce((sum: number, state: StoryState) => sum + Number(state.storyProgress || 0), 0);
+    // FIX: `state.storyProgress` can be a string or undefined at runtime.
+    // Explicitly convert to a number to ensure the sum is calculated correctly.
+    const totalProgress = startedStories.reduce((sum, state) => {
+      const progress = Number(state?.storyProgress || 0);
+      return sum + (Number.isNaN(progress) ? 0 : progress);
+    }, 0);
     const averageProgress = totalProgress / allBooks.length;
     setGlobalProgress(averageProgress);
   }, [storyStates, allBooks]);
