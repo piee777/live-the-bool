@@ -1,3 +1,4 @@
+```json
 {
   "compilerOptions": {
     "target": "ES2020",
@@ -21,6 +22,8 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["netlify", "node_modules"],
+  "exclude": ["netlify", "node_modules", "vite.config.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
+```
+
