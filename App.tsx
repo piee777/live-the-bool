@@ -220,7 +220,9 @@ export default function App() {
       setGlobalProgress(0);
       return;
     }
-    const totalProgress = startedStories.reduce((sum, state) => sum + state.storyProgress, 0);
+    // FIX: Cast 'state' to StoryState to resolve a TypeScript inference issue
+    // where it was being treated as 'unknown'. This fixes errors on the following line.
+    const totalProgress = startedStories.reduce((sum, state) => sum + (state as StoryState).storyProgress, 0);
     const averageProgress = totalProgress / allBooks.length;
     setGlobalProgress(averageProgress);
   }, [storyStates, allBooks]);

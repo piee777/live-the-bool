@@ -1,0 +1,9 @@
+
+{
+  "name": "storify-netlify-functions",
+  "version": "1.0.0",
+  "description": "Serverless functions for the Storify application.",
+  "main": "get-ai-response.ts",
+  "author": "",
+  "license": "ISC"
+}
