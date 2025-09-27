@@ -1,0 +1,15 @@
+[build]
+  # الأمر لبناء المشروع
+  command = "npm run build"
+  # المجلد الناتج بعد البناء
+  publish = "dist"
+
+[build.environment]
+  # استخدام Node.js 18
+  NODE_VERSION = "18"
+
+[[redirects]]
+  # إعادة توجيه كل الطلبات إلى index.html لدعم SPA
+  from = "/*"
+  to = "/index.html"
+  status = 200
