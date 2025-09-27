@@ -213,6 +213,17 @@ export default function App() {
           isInitialDataLoaded.current = true;
       }
   }, [isDataLoading]);
+
+  useEffect(() => {
+    const startedStories = Object.values(storyStates);
+    if (startedStories.length === 0 || allBooks.length === 0) {
+      setGlobalProgress(0);
+      return;
+    }
+    const totalProgress = startedStories.reduce((sum, state) => sum + state.storyProgress, 0);
+    const averageProgress = totalProgress / allBooks.length;
+    setGlobalProgress(averageProgress);
+  }, [storyStates, allBooks]);
   
     // --- AUTOSAVE Story State ---
     const storySaveTimeoutRef = useRef<number | null>(null);

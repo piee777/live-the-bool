@@ -180,11 +180,14 @@ export const getStoryStates = async (userId: string): Promise<Record<string, Sto
         return {};
     }
     return data.reduce((acc, state) => {
+        // FIX: Provide default values for nullable fields to ensure data conforms to the StoryState type.
+        // This prevents downstream errors, such as the one in App.tsx where `state.storyProgress` was
+        // accessed on a state object that didn't fully match the type definition, causing `state` to be inferred as `unknown`.
         acc[state.book_id] = {
-            messages: state.messages,
-            storyProgress: state.story_progress,
-            inventory: state.inventory,
-            discoveries: state.discoveries,
+            messages: state.messages || [],
+            storyProgress: state.story_progress || 0,
+            inventory: state.inventory || [],
+            discoveries: state.discoveries || [],
         };
         return acc;
     }, {} as Record<string, StoryState>);
@@ -198,7 +201,8 @@ export const getChatHistories = async (userId: string): Promise<Record<string, M
         return {};
     }
     return data.reduce((acc, chat) => {
-        acc[chat.character_id] = chat.messages;
+        // FIX: Provide a default empty array for messages to prevent issues with null values from the database.
+        acc[chat.character_id] = chat.messages || [];
         return acc;
     }, {} as Record<string, Message[]>);
 };
