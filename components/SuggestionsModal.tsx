@@ -11,7 +11,7 @@ interface SuggestionsModalProps {
   currentUser: User;
 }
 
-export const SuggestionsModal: React.FC<SuggestionsModalProps> = ({ isOpen, onClose, suggestions, userVotes, onAddSuggestion, onVote, currentUser }) => {
+export const SuggestionsModal: React.FC<SuggestionsModalProps> = ({ isOpen, onClose, suggestions, userVotes, onAddSuggestion, onVote }) => {
   const [newSuggestionText, setNewSuggestionText] = useState('');
 
   if (!isOpen) return null;

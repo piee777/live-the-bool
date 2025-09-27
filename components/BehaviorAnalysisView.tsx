@@ -29,7 +29,7 @@ const RadarChart: React.FC<{ data: { axis: string; value: number; color: string 
             {[...Array(levels)].map((_, levelIndex) => (
                 <polygon
                     key={levelIndex}
-                    points={data.map((d, i) => {
+                    points={data.map((_, i) => {
                         const r = radius * ((levelIndex + 1) / levels);
                         const angle = angleSlice * i - Math.PI / 2;
                         return `${center + r * Math.cos(angle)},${center + r * Math.sin(angle)}`;
@@ -40,7 +40,7 @@ const RadarChart: React.FC<{ data: { axis: string; value: number; color: string 
                 />
             ))}
             {/* Axes */}
-            {data.map((d, i) => {
+            {data.map((_, i) => {
                 const angle = angleSlice * i - Math.PI / 2;
                 const x = center + radius * Math.cos(angle);
                 const y = center + radius * Math.sin(angle);

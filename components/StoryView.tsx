@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Message, StoryChoice, DiaryEntry, Interruption, Discovery } from '../types';
+import { Message, StoryChoice, Interruption, Discovery } from '../types';
 import { Typewriter } from './Typewriter';
 
 interface StoryViewProps {
   message: Message;
-  progress: number;
   isLoading: boolean;
   onChoiceSelect: (choice: StoryChoice) => void;
   onOpenInventory: () => void;
@@ -101,7 +100,7 @@ const ChoiceButton: React.FC<{ choice: StoryChoice; onClick: (choice: StoryChoic
     );
 };
 
-export const StoryView: React.FC<StoryViewProps> = ({ message, progress, isLoading, onChoiceSelect, onOpenInventory, inventoryCount, onSaveQuote, discoveries }) => {
+export const StoryView: React.FC<StoryViewProps> = ({ message, isLoading, onChoiceSelect, onOpenInventory, inventoryCount, onSaveQuote, discoveries }) => {
   const hasChoices = message.choices && message.choices.length > 0;
   const [typingComplete, setTypingComplete] = useState(false);
   const [isDiscoveriesOpen, setIsDiscoveriesOpen] = useState(false);

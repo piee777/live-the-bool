@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DiscoveryPost, User, Reply } from '../types';
+import { DiscoveryPost, User } from '../types';
 
 const VerifiedBadge: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
     <svg

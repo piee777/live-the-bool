@@ -12,7 +12,6 @@ export const Typewriter: React.FC<TypewriterProps> = ({ text, speed = 35, classN
 
   useEffect(() => {
     setDisplayedText(''); // Reset on new text
-    let i = 0;
     if (text.length === 0) {
       if (onComplete) onComplete();
       return;

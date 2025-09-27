@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Book, Character, Message, Role, User, StoryChoice, Discovery, StoryState, DiscoveryPost, Reply } from './types';
+import { Book, Character, Message, Role, User, StoryChoice, Discovery, StoryState, DiscoveryPost } from './types';
 import { LibraryScreen } from './components/BookDetails';
 import { ChatInterface } from './components/ChatInterface';
 import { getCharacterResponse, getBehavioralAnalysis } from './services/geminiService';
@@ -112,7 +112,7 @@ const Modal: React.FC<{ title: string; children: React.ReactNode; onClose: () =>
     </div>
 );
 
-const AppLoader: React.FC<{ message: string }> = ({ message }) => (
+const AppLoader: React.FC = () => (
     <div className="w-full h-full flex flex-col items-center justify-center text-center bg-brand-bg-dark">
         <div className="w-16 h-16 border-4 border-t-transparent border-amber-500 rounded-full animate-spin"></div>
     </div>
@@ -499,11 +499,11 @@ export default function App() {
     }
   };
   
-  const handleSaveQuote = (quote: string) => setNotification('تم حفظ الاقتباس بنجاح!');
+  const handleSaveQuote = () => setNotification('تم حفظ الاقتباس بنجاح!');
   
   if (isSplashScreen) return <SplashScreen />;
   if (!currentUser) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
-  if (isDataLoading) return <AppLoader message="جاري مزامنة بياناتك من السحابة..." />;
+  if (isDataLoading) return <AppLoader />;
 
 
   const renderCurrentView = () => {
@@ -516,7 +516,7 @@ export default function App() {
         );
       case 'story':
         return selectedBook ? (
-            <StoryView message={messages[messages.length - 1] || { role: Role.NARRATOR, content: 'جاري بدء القصة...'}} progress={storyProgress} isLoading={isLoading} onChoiceSelect={(choice) => handleSendMessage(choice, {isStoryMode: true})} onOpenInventory={() => { setModalTitle("الحقيبة"); setModalContent(inventory.length > 0 ? <ul className="list-disc pr-5 space-y-2">{inventory.map((item, i) => <li key={i}>{item}</li>)}</ul> : <p>حقيبتك فارغة.</p>); }} inventoryCount={inventory.length} onSaveQuote={handleSaveQuote} discoveries={discoveries} />
+            <StoryView message={messages[messages.length - 1] || { role: Role.NARRATOR, content: 'جاري بدء القصة...'}} isLoading={isLoading} onChoiceSelect={(choice) => handleSendMessage(choice, {isStoryMode: true})} onOpenInventory={() => { setModalTitle("الحقيبة"); setModalContent(inventory.length > 0 ? <ul className="list-disc pr-5 space-y-2">{inventory.map((item, i) => <li key={i}>{item}</li>)}</ul> : <p>حقيبتك فارغة.</p>); }} inventoryCount={inventory.length} onSaveQuote={handleSaveQuote} discoveries={discoveries} />
         ) : <p>Book not selected</p>;
       case 'profile':
          return <ProfileView user={currentUser} allUsers={allUsers} stats={{ storiesStarted: Object.keys(storyStates).length, achievementsUnlocked: unlockedAchievements.length }} unlockedAchievements={unlockedAchievements} />;

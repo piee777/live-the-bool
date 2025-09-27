@@ -19,6 +19,12 @@ const TimeAgo: React.FC<{ timestamp: number }> = ({ timestamp }) => {
     return <span className="font-arabic">{messageDate.toLocaleDateString('ar', { month: 'short', day: 'numeric' })}</span>;
 };
 
+type Conversation = {
+    character: Character;
+    book: Book;
+    lastMessage: Message;
+};
+
 export const ChatsListView: React.FC<ChatsListViewProps> = ({ chatHistories, books, onCharacterSelect }) => {
     
     const conversations = Object.entries(chatHistories)
@@ -35,15 +41,13 @@ export const ChatsListView: React.FC<ChatsListViewProps> = ({ chatHistories, boo
                 }
             }
 
-            // FIX: Added Array.isArray check to act as a type guard. This resolves TypeScript errors
-            // where `messages` could be `unknown` due to being loaded from localStorage via JSON.parse.
             if (!character || !book || !Array.isArray(messages) || messages.length === 0) return null;
             
             const lastMessage = messages[messages.length - 1];
             return { character, book, lastMessage };
         })
-        .filter(Boolean)
-        .sort((a, b) => (b!.lastMessage.timestamp || 0) - (a!.lastMessage.timestamp || 0));
+        .filter((c): c is Conversation => c !== null)
+        .sort((a, b) => (b.lastMessage.timestamp || 0) - (a.lastMessage.timestamp || 0));
 
 
     if (conversations.length === 0) {

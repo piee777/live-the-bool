@@ -91,7 +91,7 @@ const DateSeparator: React.FC<{ date: Date }> = ({ date }) => {
         </div>
     );
 };
-const ChatBubble: React.FC<{ message: PublicMessage; isCurrentUser: boolean; onReact: (msgId: string, emoji: string) => void; currentUser: User; }> = ({ message, isCurrentUser, onReact, currentUser }) => {
+const ChatBubble: React.FC<{ message: PublicMessage; isCurrentUser: boolean; onReact: (msgId: string, emoji: string) => void; }> = ({ message, isCurrentUser, onReact }) => {
     const [showReactions, setShowReactions] = useState(false);
     const availableReactions = ['❤️', '😂', '👍', '🤔', '📌'];
     
@@ -185,7 +185,6 @@ const ChatRoom: React.FC<{ currentUser: User }> = ({ currentUser }) => {
                           message={msg} 
                           isCurrentUser={msg.author.id === currentUser.id} 
                           onReact={handleReact}
-                          currentUser={currentUser}
                       />
                   );
               })}

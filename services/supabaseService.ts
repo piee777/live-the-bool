@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { User, Book, StoryState, Message, DiscoveryPost, Reply, Character } from '../types';
+import { User, Book, StoryState, Message, DiscoveryPost, Reply, Discovery } from '../types';
 
 const supabaseUrl = 'https://bxvbbvadlldlckmswilv.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4dmJidmFkbGxkbGNrbXN3aWx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTA4MTgsImV4cCI6MjA3NDQ4NjgxOH0.3e0JMCyu0N_XyEGLJxgXMkHyCCdbhRORhWw0hjzj0nU';
@@ -180,13 +180,14 @@ export const getStoryStates = async (userId: string): Promise<Record<string, Sto
         return {};
     }
     return data.reduce((acc, state) => {
-        // FIX: Ensure all properties correctly match the StoryState type, especially for array fields which might not be correctly parsed from the database.
-        // This prevents downstream errors where the state object is inferred as `unknown`.
+        // FIX: Ensure all properties correctly match the StoryState type. Data from the DB is `any`,
+        // so we cast array types to prevent TypeScript from inferring them as `any[]`, which
+        // would cause downstream type errors.
         acc[state.book_id] = {
-            messages: Array.isArray(state.messages) ? state.messages : [],
+            messages: (Array.isArray(state.messages) ? state.messages : []) as Message[],
             storyProgress: state.story_progress || 0,
-            inventory: Array.isArray(state.inventory) ? state.inventory : [],
-            discoveries: Array.isArray(state.discoveries) ? state.discoveries : [],
+            inventory: (Array.isArray(state.inventory) ? state.inventory : []) as string[],
+            discoveries: (Array.isArray(state.discoveries) ? state.discoveries : []) as Discovery[],
         };
         return acc;
     }, {} as Record<string, StoryState>);
@@ -200,8 +201,8 @@ export const getChatHistories = async (userId: string): Promise<Record<string, M
         return {};
     }
     return data.reduce((acc, chat) => {
-        // FIX: Ensure messages is an array to prevent issues with non-array values from the database.
-        acc[chat.character_id] = Array.isArray(chat.messages) ? chat.messages : [];
+        // FIX: Ensure messages is a Message[] array by casting, to prevent type issues with `any[]` from the database.
+        acc[chat.character_id] = (Array.isArray(chat.messages) ? chat.messages : []) as Message[];
         return acc;
     }, {} as Record<string, Message[]>);
 };

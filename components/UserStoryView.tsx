@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserBook, UserChapter } from '../types';
+import { UserBook } from '../types';
 import { Typewriter } from './Typewriter';
 
 interface UserStoryViewProps {

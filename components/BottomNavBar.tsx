@@ -17,7 +17,6 @@ const NavButton: React.FC<{
   onClick: () => void;
 }> = ({ label, icon, isActive, isDisabled, activeGradient, onClick }) => {
   const activeClasses = "text-amber-500";
-  const inactiveClasses = "text-brand-text-dark hover:text-brand-text-medium";
   const disabledClasses = "text-slate-600 cursor-not-allowed";
 
   return (
