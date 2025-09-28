@@ -24,7 +24,7 @@ function getAiClient(): GoogleGenAI | null {
   // As per instructions, process.env.API_KEY is assumed to be pre-configured.
   const apiKey = process.env.API_KEY;
 
-  if (!apiKey) {
+  if (!apiKey || apiKey === 'undefined') {
     if (!apiKeyMissingErrorLogged) {
       console.error(
         "Storify App Critical Error: VITE_GEMINI_API_KEY environment variable is not set. " +
