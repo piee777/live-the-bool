@@ -1,9 +1,50 @@
 import { GoogleGenAI, GenerateContentResponse } from '@google/genai';
 import { Message, Role, StoryChoice, Discovery } from '../types';
 
-// As per instructions, process.env.API_KEY is assumed to be pre-configured and available.
-// The AI client is initialized once when the module is loaded.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Memoize the AI client instance to avoid re-initialization.
+let ai: GoogleGenAI | null = null;
+// Flag to prevent repeated console errors if the key is missing.
+let apiKeyMissingErrorLogged = false;
+
+/**
+ * Lazily initializes and returns the GoogleGenAI client.
+ * This prevents the app from crashing on startup if the API key is not set.
+ * @returns The GoogleGenAI instance or null if the API key is missing.
+ */
+function getAiClient(): GoogleGenAI | null {
+  if (ai) {
+    return ai;
+  }
+  
+  // If we've already determined the key is missing, don't try again.
+  if (apiKeyMissingErrorLogged) {
+    return null;
+  }
+
+  // As per instructions, process.env.API_KEY is assumed to be pre-configured.
+  const apiKey = process.env.API_KEY;
+
+  if (!apiKey) {
+    if (!apiKeyMissingErrorLogged) {
+      console.error(
+        "Storify App Critical Error: VITE_GEMINI_API_KEY environment variable is not set. " +
+        "The application will load, but AI features will be disabled and show an error message. " +
+        "Please ensure the environment variable is configured in your deployment environment."
+      );
+      apiKeyMissingErrorLogged = true;
+    }
+    return null;
+  }
+  
+  try {
+    ai = new GoogleGenAI({ apiKey });
+    return ai;
+  } catch (error) {
+    console.error("Failed to initialize GoogleGenAI. Please check if the API key is valid.", error);
+    apiKeyMissingErrorLogged = true;
+    return null;
+  }
+}
 
 const parseGeminiResponse = (responseText: string, isStoryMode: boolean): Message => {
   const message: Message = {
@@ -92,6 +133,14 @@ export const getCharacterResponse = async (
   history: Message[]
 ): Promise<Message> => {
 
+  const aiClient = getAiClient();
+  if (!aiClient) {
+    return {
+      role: Role.SYSTEM,
+      content: "خطأ في الإعدادات: مفتاح الواجهة البرمجية (API Key) غير موجود. يرجى إبلاغ المطور.",
+    };
+  }
+  
   const isStoryMode = systemInstruction.includes('أنت سيد السرد');
 
   const geminiHistory = history
@@ -102,7 +151,7 @@ export const getCharacterResponse = async (
     }));
 
   try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
+    const response: GenerateContentResponse = await aiClient.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: geminiHistory,
         config: {
@@ -130,6 +179,11 @@ export const getBehavioralAnalysis = async (
     discoveries: Discovery[],
     characterPersona: string
 ): Promise<string> => {
+    const aiClient = getAiClient();
+    if (!aiClient) {
+        return "لا يمكن إجراء التحليل لأن مفتاح الواجهة البرمجية (API Key) غير متاح.";
+    }
+
     if (discoveries.length === 0) {
         return "لم تتخذ قرارات كافية بعد ليتم تحليلها. استمر في القصة وسأشاركك أفكاري قريبًا.";
     }
@@ -152,7 +206,7 @@ ${discoveriesSummary}
 اكتب ردك كنص متدفق وطبيعي، كما لو كنت تتحدث معه وجهًا لوجه. اجعل التحليل شخصيًا ومؤثرًا.`;
 
     try {
-        const response: GenerateContentResponse = await ai.models.generateContent({
+        const response: GenerateContentResponse = await aiClient.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: [{ role: 'user', parts: [{ text: 'حلل سلوكي.' }] }],
             config: {

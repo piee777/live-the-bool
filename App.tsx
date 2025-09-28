@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Book, Character, Message, Role, User, StoryChoice, Discovery, StoryState, DiscoveryPost } from './types';
 import { LibraryScreen } from './components/BookDetails';
@@ -238,7 +239,10 @@ export default function App() {
     // FIX: `state.storyProgress` can be a string or undefined at runtime.
     // Explicitly convert to a number to ensure the sum is calculated correctly.
     const totalProgress = startedStories.reduce((sum, state) => {
-      const progress = Number(state?.storyProgress || 0);
+      // FIX: Cast `state` to `any` to allow accessing `storyProgress`. The compiler
+      // infers `state` as `unknown`, causing a type error. This preserves the
+      // runtime safety checks for potentially non-numeric or missing values.
+      const progress = Number((state as any)?.storyProgress || 0);
       return sum + (Number.isNaN(progress) ? 0 : progress);
     }, 0);
     const averageProgress = totalProgress / allBooks.length;
