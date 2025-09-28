@@ -233,12 +233,9 @@ export default function App() {
       setGlobalProgress(0);
       return;
     }
-    // FIX: Replaced reduce with a more robust for...of loop to prevent type errors
-    // when calculating total progress. This ensures that even if storyProgress is
-    // not a number, it is safely handled without corrupting the calculation.
     let totalProgress = 0;
     for (const state of startedStories) {
-      const progress = Number(state.storyProgress || 0);
+      const progress = Number((state as StoryState).storyProgress || 0);
       if (!isNaN(progress)) {
         totalProgress += progress;
       }
@@ -254,7 +251,6 @@ export default function App() {
             return;
         }
 
-        // Only save state if the user has made at least one choice.
         if (discoveries.length === 0) {
             return;
         }
@@ -264,7 +260,7 @@ export default function App() {
         storySaveTimeoutRef.current = window.setTimeout(() => {
             const currentState: StoryState = { messages, storyProgress, inventory, discoveries };
             db.saveStoryState(currentUser.id, selectedBook.id, currentState);
-        }, 1500); // Debounce for 1.5 seconds
+        }, 1500); 
 
         return () => {
             if (storySaveTimeoutRef.current) clearTimeout(storySaveTimeoutRef.current);
@@ -282,7 +278,7 @@ export default function App() {
 
         chatSaveTimeoutRef.current = window.setTimeout(() => {
             db.saveChatHistory(currentUser.id, selectedCharacter.id, messages);
-        }, 1500); // Debounce for 1.5 seconds
+        }, 1500); 
 
         return () => {
             if (chatSaveTimeoutRef.current) clearTimeout(chatSaveTimeoutRef.current);
@@ -345,9 +341,7 @@ export default function App() {
   const handleSetView = async (newView: View) => {
     if (!currentUser) return;
     
-    // Update local state caches for smoother UI transitions before view change
     if (view === 'story' && newView !== 'story' && selectedBook) {
-        // Only update local state if progress has actually been made.
         if (discoveries.length > 0) {
             const currentState: StoryState = { messages, storyProgress, inventory, discoveries };
             setStoryStates(prev => ({...prev, [selectedBook.id]: currentState}));
@@ -449,10 +443,8 @@ export default function App() {
     const text = typeof choice === 'string' ? choice : choice.text;
     const newUserMessage: Message = { role: Role.USER, content: text, timestamp: Date.now() };
     
-    // For the API, we always include the user's message for context.
     const messagesForApi = [...messages, newUserMessage];
 
-    // For the UI, only add the user's message if it's NOT story mode.
     if (!isStoryMode) {
       setMessages(messagesForApi);
     }
@@ -493,14 +485,9 @@ export default function App() {
       if (responseMessage.fateRoll) {
         setFateRollChallenge(responseMessage.fateRoll);
         setIsLoading(false);
-        // In story mode, we don't display the user's choice, so there's no message to append to.
-        // We just show the modal. The challenge text is in the modal.
         return;
       }
 
-      // Add the AI's response to the messages list.
-      // If in story mode, this adds the narration directly after the previous narration.
-      // If in chat mode, this adds the character response after the user's message.
       setMessages(prev => [...prev, responseMessage]);
 
     } catch (e) {
@@ -548,29 +535,58 @@ export default function App() {
         );
       case 'library':
       default:
-        return <LibraryScreen books={allBooks} selectedBook={selectedBook} storyStates={storyStates} onBookSelect={handleBookSelect} onCharacterSelect={(char) => handleCharacterSelect(char, selectedBook!)} onStartStory={handleStartStory} onBackToGrid={handleBackToLibraryGrid} onSuggestNovel={handleSuggestNovel} currentUser={currentUser} />;
+        return (
+          <LibraryScreen
+            books={allBooks}
+            selectedBook={selectedBook}
+            storyStates={storyStates}
+            onBookSelect={handleBookSelect}
+            onCharacterSelect={(char) => handleCharacterSelect(char, selectedBook!)}
+            onStartStory={handleStartStory}
+            onBackToGrid={handleBackToLibraryGrid}
+            onSuggestNovel={handleSuggestNovel}
+            currentUser={currentUser}
+          />
+        );
     }
   };
 
-  const isStoryModeActive = selectedBook !== null && (view === 'story' || view === 'behaviorAnalysis');
-
   return (
-    <div className="h-full w-full flex flex-col bg-brand-bg-dark text-white font-sans max-w-7xl mx-auto shadow-2xl shadow-black/50">
-      
-      {!selectedBook && !['chatsList', 'discover', 'profile'].includes(view) && (
-          <TopHeader user={currentUser} theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} globalProgress={globalProgress} />
+    <div className="w-full h-full flex flex-col bg-brand-bg-dark text-brand-text-light font-sans overflow-hidden">
+      {lastUnlockedAchievement && (
+        <Toast message={lastUnlockedAchievement} onDismiss={() => setLastUnlockedAchievement(null)} />
       )}
-      
-      {lastUnlockedAchievement && <Toast message={lastUnlockedAchievement} onDismiss={() => setLastUnlockedAchievement(null)} />}
-      {notification && <Notification message={notification} onDismiss={() => setNotification(null)} />}
-      {modalContent && <Modal title={modalTitle} onClose={() => setModalContent(null)}>{modalContent}</Modal>}
-      {fateRollChallenge && <FateRollModal challenge={fateRollChallenge} onResult={handleFateRollResult} />}
+      {notification && (
+        <Notification message={notification} onDismiss={() => setNotification(null)} />
+      )}
+      {modalContent && (
+        <Modal title={modalTitle} onClose={() => setModalContent(null)}>
+          {modalContent}
+        </Modal>
+      )}
+      {fateRollChallenge && (
+        <FateRollModal challenge={fateRollChallenge} onResult={handleFateRollResult} />
+      )}
 
-      <main className="flex-1 overflow-hidden">
-        {renderCurrentView()}
-      </main>
-
-      <BottomNavBar currentView={view} setView={handleSetView} isStoryMode={isStoryModeActive} />
+      {/* Main Layout */}
+      <div className="flex-1 flex flex-col min-h-0">
+        {view !== 'story' && view !== 'chat' && view !== 'behaviorAnalysis' && (
+          <TopHeader 
+            user={currentUser} 
+            theme={theme} 
+            onThemeToggle={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
+            globalProgress={globalProgress} 
+          />
+        )}
+        <main className="flex-1 overflow-y-auto">
+          {renderCurrentView()}
+        </main>
+        <BottomNavBar 
+            currentView={view} 
+            setView={handleSetView} 
+            isStoryMode={view === 'story' || view === 'behaviorAnalysis'} 
+        />
+      </div>
     </div>
   );
 }

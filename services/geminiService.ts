@@ -16,7 +16,6 @@ function getAiClient(): GoogleGenAI | null {
     return ai;
   }
   
-  // If we've already determined the key is missing, don't try again.
   if (apiKeyMissingErrorLogged) {
     return null;
   }
@@ -24,12 +23,12 @@ function getAiClient(): GoogleGenAI | null {
   // As per instructions, process.env.API_KEY is assumed to be pre-configured.
   const apiKey = process.env.API_KEY;
 
-  if (!apiKey || apiKey === 'undefined') {
+  if (!apiKey || apiKey.trim() === '' || apiKey === 'undefined') {
     if (!apiKeyMissingErrorLogged) {
       console.error(
-        "Storify App Critical Error: VITE_GEMINI_API_KEY environment variable is not set. " +
-        "The application will load, but AI features will be disabled and show an error message. " +
-        "Please ensure the environment variable is configured in your deployment environment."
+        "Storify App Critical Error: GEMINI_API_KEY environment variable is not set correctly. " +
+        "The application will load, but AI features will be disabled. " +
+        "Please ensure the environment variable is configured in your Netlify deployment settings."
       );
       apiKeyMissingErrorLogged = true;
     }
@@ -137,7 +136,7 @@ export const getCharacterResponse = async (
   if (!aiClient) {
     return {
       role: Role.SYSTEM,
-      content: "خطأ في الإعدادات: مفتاح الواجهة البرمجية (API Key) غير موجود. يرجى إبلاغ المطور.",
+      content: "خطأ في الإعدادات: لم يتم العثور على مفتاح الواجهة البرمجية (API Key).",
     };
   }
   
@@ -149,6 +148,14 @@ export const getCharacterResponse = async (
       role: msg.role === Role.USER ? 'user' : 'model',
       parts: [{ text: msg.content }],
     }));
+    
+  // FIX: The Gemini API requires conversation history to start with a 'user' role.
+  // If our history starts with a 'model' message (e.g., the initial greeting from a character),
+  // it causes an error. This removes the initial model message to ensure a valid request format.
+  if (geminiHistory.length > 0 && geminiHistory[0].role === 'model') {
+      geminiHistory.shift();
+  }
+
 
   try {
     const response: GenerateContentResponse = await aiClient.models.generateContent({
@@ -168,9 +175,25 @@ export const getCharacterResponse = async (
 
   } catch (error: any) {
     console.error("Gemini API Error:", error);
+    
+    let userMessage = "حدث خطأ أثناء التواصل مع الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.";
+
+    // The API might be blocked, the key invalid, or the request malformed.
+    // In a deployed environment like Netlify, the most common issue is the API key.
+    if (error.message) {
+      if (error.message.toLowerCase().includes('api key')) {
+        userMessage = "خطأ في الإعدادات: مفتاح الواجهة البرمجية (API Key) غير صالح. يرجى التأكد من إعداده بشكل صحيح في بيئة النشر.";
+      } else if (error.message.toLowerCase().includes('fetch') || error.message.toLowerCase().includes('network')) {
+        userMessage = "حدث خطأ في الشبكة. يرجى التحقق من اتصالك بالإنترنت.";
+      } else {
+        // Generic but more helpful error for deployment issues.
+        userMessage = "فشل الاتصال بالذكاء الاصطناعي. قد تكون هناك مشكلة في إعدادات الواجهة البرمجية (API Key) في بيئة النشر (Netlify). يرجى مراجعة الإعدادات.";
+      }
+    }
+    
     return {
       role: Role.SYSTEM,
-      content: "حدث خطأ أثناء التواصل مع الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.",
+      content: userMessage,
     };
   }
 };
@@ -217,8 +240,11 @@ ${discoveriesSummary}
         const responseText = response.text;
         return responseText || "لا أستطيع تجميع أفكاري الآن... دعنا نواصل القصة أولاً.";
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Gemini API Error (Behavior Analysis):", error);
-        return "حدث خطأ أثناء محاولة تحليل أفعالك. ربما القدر لا يريدنا أن نعرف كل شيء بعد.";
+        if (error.message && error.message.toLowerCase().includes('api key')) {
+            return "فشل التحليل. مفتاح الواجهة البرمجية (API Key) غير صالح أو غير متاح في بيئة النشر.";
+        }
+        return "حدث خطأ أثناء تحليل أفعالك. يرجى التحقق من إعدادات الواجهة البرمجية (API Key) في بيئة النشر (Netlify).";
     }
 };
