@@ -14,8 +14,18 @@ const fileToBase64 = (file: File): Promise<string> =>
         reader.onerror = (error) => reject(error);
     });
 
+const hashPassword = async (password: string): Promise<string> => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+};
+
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     const [name, setName] = useState('');
+    const [password, setPassword] = useState('');
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -38,14 +48,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     const handleLoginOrSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         const trimmedName = name.trim();
-        if (!trimmedName) {
-            setError('الرجاء إدخال اسم.');
+        if (!trimmedName || !password.trim()) {
+            setError('الرجاء إدخال الاسم وكلمة المرور.');
             return;
         }
         setIsLoading(true);
         setError('');
 
         try {
+            const hashedPassword = await hashPassword(password);
             const existingUser = await getUserProfileByName(trimmedName);
             
             let avatar_url: string | undefined = undefined;
@@ -53,24 +64,32 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 avatar_url = await fileToBase64(avatarFile);
             }
 
-            if (existingUser) {
-                if (avatar_url) {
+            if (existingUser) { // Login Flow
+                if (existingUser.password_hash !== hashedPassword) {
+                    setError("كلمة المرور غير صحيحة.");
+                    setIsLoading(false);
+                    return;
+                }
+                
+                // Successful login, check for avatar update
+                if (avatar_url && avatar_url !== existingUser.avatar_url) {
                     const updatedUser = await updateUserProfile(existingUser.id, { avatar_url });
-                    if (updatedUser) {
-                        onLoginSuccess(updatedUser);
-                    } else {
-                         setError("لم نتمكن من تحديث ملفك الشخصي. الرجاء المحاولة مرة أخرى.");
-                         setIsLoading(false);
-                    }
+                    onLoginSuccess(updatedUser || existingUser);
                 } else {
                     onLoginSuccess(existingUser);
                 }
-            } else {
-                const newUser = await createUserProfile(trimmedName, avatar_url);
+
+            } else { // Signup Flow
+                if (!avatarFile) {
+                    setError("صورة الملف الشخصي مطلوبة لإنشاء حساب جديد.");
+                    setIsLoading(false);
+                    return;
+                }
+                const newUser = await createUserProfile(trimmedName, hashedPassword, avatar_url);
                 if (newUser) {
                     onLoginSuccess(newUser);
                 } else {
-                    setError("لم نتمكن من إنشاء ملفك الشخصي. الرجاء المحاولة مرة أخرى.");
+                    setError("هذا الاسم مستخدم بالفعل أو حدث خطأ ما. حاول مرة أخرى.");
                     setIsLoading(false);
                 }
             }
@@ -92,7 +111,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 <h1 className="text-4xl font-extrabold text-brand-text-light font-arabic">أهلاً بك في Storify</h1>
                 <p className="text-brand-text-medium font-arabic mt-2">أدخل اسمك للمتابعة أو لإنشاء حساب جديد.</p>
 
-                <form onSubmit={handleLoginOrSignup} className="mt-8 space-y-6">
+                <form onSubmit={handleLoginOrSignup} className="mt-8 space-y-4">
                     <input
                         type="file"
                         accept="image/png, image/jpeg, image/webp"
@@ -113,7 +132,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                         </div>
                     </button>
 
-                    <div>
+                    <div className="space-y-4">
                         <input
                             type="text"
                             value={name}
@@ -123,14 +142,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                             disabled={isLoading}
                             maxLength={20}
                         />
+                         <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="كلمة المرور"
+                            className="w-full p-4 bg-brand-surface-dark border-2 border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600 transition-all text-brand-text-light placeholder-brand-text-dark font-arabic text-center text-lg"
+                            disabled={isLoading}
+                        />
                     </div>
                     
-                    {error && <p className="text-red-400 font-arabic text-sm">{error}</p>}
+                    {error && <p className="text-red-400 font-arabic text-sm mt-2">{error}</p>}
 
                     <button
                         type="submit"
-                        className="w-full p-4 font-bold font-arabic text-lg bg-gradient-crimson-amber text-white rounded-lg shadow-lg hover:shadow-glow-amber transition-all disabled:opacity-50 disabled:cursor-wait"
-                        disabled={isLoading || !name.trim()}
+                        className="w-full p-4 font-bold font-arabic text-lg bg-gradient-crimson-amber text-white rounded-lg shadow-lg hover:shadow-glow-amber transition-all disabled:opacity-50 disabled:cursor-wait mt-6"
+                        disabled={isLoading || !name.trim() || !password.trim()}
                     >
                         {isLoading ? 'جاري التحقق...' : 'متابعة'}
                     </button>

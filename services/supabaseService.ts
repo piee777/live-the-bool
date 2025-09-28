@@ -1,6 +1,107 @@
 import { createClient } from '@supabase/supabase-js';
 import { User, Book, StoryState, Message, DiscoveryPost, Reply, Discovery } from '../types';
 
+// Storify Database Schema
+// To set up your Supabase database, run the following SQL queries in the Supabase SQL Editor.
+
+/*
+-- 1. Profiles Table
+-- Stores user information. The 'name' must be unique.
+-- The 'password_hash' column is added for the custom authentication logic.
+CREATE TABLE profiles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  name text UNIQUE NOT NULL,
+  avatar_url text,
+  password_hash text NOT NULL
+);
+
+-- 2. Books Table
+-- Stores the predefined books available in the library.
+CREATE TABLE books (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  title text NOT NULL,
+  author text NOT NULL,
+  summary text NOT NULL
+);
+
+-- 3. Characters Table
+-- Stores characters associated with each book.
+CREATE TABLE characters (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  name text NOT NULL,
+  description text NOT NULL,
+  persona text NOT NULL,
+  book_id uuid REFERENCES books(id) ON DELETE CASCADE NOT NULL
+);
+
+-- 4. Story States Table
+-- Saves a user's progress within a specific book's story mode.
+CREATE TABLE story_states (
+  user_id uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  book_id uuid REFERENCES books(id) ON DELETE CASCADE NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  messages jsonb DEFAULT '[]'::jsonb,
+  story_progress integer DEFAULT 0,
+  inventory jsonb DEFAULT '[]'::jsonb,
+  discoveries jsonb DEFAULT '[]'::jsonb,
+  PRIMARY KEY (user_id, book_id)
+);
+
+-- 5. Chat Histories Table
+-- Saves the chat history between a user and a character.
+CREATE TABLE chat_histories (
+  user_id uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  character_id uuid REFERENCES characters(id) ON DELETE CASCADE NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  messages jsonb DEFAULT '[]'::jsonb,
+  PRIMARY KEY (user_id, character_id)
+);
+
+-- 6. Novel Suggestions Table
+-- Stores suggestions for new novels submitted by users.
+CREATE TABLE novel_suggestions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  user_id uuid REFERENCES profiles(id) ON DELETE SET NULL,
+  title text NOT NULL,
+  author text
+);
+
+-- 7. Discovery Posts Table
+-- Stores user-generated posts for the "Discover" feature.
+CREATE TABLE discovery_posts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  author_id uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  type text NOT NULL CHECK (type IN ('discussion', 'recommendation')),
+  title text NOT NULL,
+  content text NOT NULL
+);
+
+-- 8. Discovery Post Likes Table
+-- Tracks likes on discovery posts.
+CREATE TABLE discovery_post_likes (
+  post_id uuid REFERENCES discovery_posts(id) ON DELETE CASCADE NOT NULL,
+  user_id uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  PRIMARY KEY (post_id, user_id)
+);
+
+-- 9. Discovery Post Replies Table
+-- Stores replies to discovery posts.
+CREATE TABLE discovery_post_replies (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  post_id uuid REFERENCES discovery_posts(id) ON DELETE CASCADE NOT NULL,
+  author_id uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  content text NOT NULL
+);
+*/
+
+
 const supabaseUrl = 'https://bxvbbvadlldlckmswilv.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4dmJidmFkbGxkbGNrbXN3aWx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTA4MTgsImV4cCI6MjA3NDQ4NjgxOH0.3e0JMCyu0N_XyEGLJxgXMkHyCCdbhRORhWw0hjzj0nU';
 
@@ -80,7 +181,7 @@ const seedInitialData = async () => {
 
 
 // --- User Management ---
-export const getUserProfileByName = async (name: string): Promise<User | null> => {
+export const getUserProfileByName = async (name: string): Promise<(User & { password_hash: string }) | null> => {
     const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -117,7 +218,7 @@ export const updateUserProfile = async (userId: string, updates: { avatar_url: s
         .from('profiles')
         .update(updates)
         .eq('id', userId)
-        .select()
+        .select('id, name, avatar_url, created_at')
         .single();
     if (error) {
         console.error("Error updating user profile:", error);
@@ -126,14 +227,18 @@ export const updateUserProfile = async (userId: string, updates: { avatar_url: s
     return data;
 };
 
-export const createUserProfile = async (name: string, avatar_url?: string): Promise<User | null> => {
+export const createUserProfile = async (name: string, password_hash: string, avatar_url?: string): Promise<User | null> => {
     const { data, error } = await supabase
         .from('profiles')
-        .insert({ name, avatar_url })
-        .select()
+        .insert({ name, password_hash, avatar_url })
+        .select('id, name, avatar_url, created_at')
         .single();
     if (error) {
         console.error("Error creating user profile:", error);
+        if (error.message.includes('duplicate key value violates unique constraint "profiles_name_key"')) {
+            // This case should be handled before calling, but as a fallback.
+            return null; 
+        }
         logTableMissingError('profiles', error);
         return null;
     }
