@@ -236,6 +236,16 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
             </div>
         </div>
 
+        {/* Contact Info */}
+        <div className="text-center pt-2 pb-6">
+            <p className="text-sm text-brand-text-dark font-arabic">
+                للتواصل أو الإبلاغ عن مشكلة: 
+                <a href="mailto:bensadelfy@gmail.com" className="font-medium text-amber-500 hover:text-amber-400 transition-colors underline decoration-dotted underline-offset-4 mr-1">
+                    bensadelfy@gmail.com
+                </a>
+            </p>
+        </div>
+
       </div>
        <UsersModal 
         isOpen={isUsersModalOpen} 
