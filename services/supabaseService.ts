@@ -96,6 +96,22 @@ export const getUserProfileByName = async (name: string): Promise<User | null> =
     return data;
 };
 
+export const getUserProfileById = async (id: string): Promise<User | null> => {
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', id)
+        .single();
+    
+    // .single() returns an error if no row is found, which we can ignore.
+    if (error && error.code !== 'PGRST116') {
+        console.error("Error fetching user by ID:", error);
+        logTableMissingError('profiles', error);
+        return null;
+    }
+    return data;
+};
+
 export const updateUserProfile = async (userId: string, updates: { avatar_url: string }): Promise<User | null> => {
     const { data, error } = await supabase
         .from('profiles')

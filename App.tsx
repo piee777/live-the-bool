@@ -166,16 +166,36 @@ export default function App() {
   useEffect(() => {
     if (isSplashScreen) return;
     const savedUserJson = localStorage.getItem('storify_user');
+
+    const handleInvalidLocalUser = () => {
+      localStorage.removeItem('storify_user');
+      setCurrentUser(null);
+      setIsDataLoading(false);
+    };
+
     if (savedUserJson) {
+      const validateAndSetUser = async () => {
         try {
-            setCurrentUser(JSON.parse(savedUserJson));
+          const savedUser: User = JSON.parse(savedUserJson);
+          if (!savedUser || !savedUser.id) {
+            throw new Error('Invalid user data in localStorage.');
+          }
+
+          const userFromDb = await db.getUserProfileById(savedUser.id);
+          if (userFromDb) {
+            setCurrentUser(userFromDb);
+          } else {
+            console.warn("User from localStorage not found in DB. Forcing re-login.");
+            handleInvalidLocalUser();
+          }
         } catch (e) {
-            console.error("Failed to parse user from localStorage", e);
-            localStorage.removeItem('storify_user');
-            setIsDataLoading(false);
+          console.error("Failed to process user from localStorage:", e);
+          handleInvalidLocalUser();
         }
+      };
+      validateAndSetUser();
     } else {
-        setIsDataLoading(false);
+      setIsDataLoading(false);
     }
   }, [isSplashScreen]);
 
@@ -413,7 +433,13 @@ export default function App() {
     const newUserMessage: Message = { role: Role.USER, content: text, timestamp: Date.now() };
 
     const messagesForApi = [...messages, newUserMessage];
-    setMessages(messagesForApi);
+    
+    // In chat mode, display the user's message immediately.
+    // In story mode, we wait for the narrator's response to create a seamless flow.
+    if (!isStoryMode) {
+      setMessages(messagesForApi);
+    }
+    
     setIsLoading(true);
 
     const currentBook = bookForStory || selectedBook;
@@ -448,12 +474,21 @@ export default function App() {
         setModalContent(responseMessage.flashback);
       }
       if (responseMessage.fateRoll) {
+        // Save the user's action that triggered the fate roll to history before showing the modal.
+        setMessages(prev => [...prev, newUserMessage]);
         setFateRollChallenge(responseMessage.fateRoll);
         setIsLoading(false);
         return;
       }
 
-      setMessages(prev => [...prev, responseMessage]);
+      if (isStoryMode) {
+        // In story mode, add both the user's choice and the AI's response at the same time.
+        // This keeps the history correct without displaying the user's choice in the UI.
+        setMessages(prev => [...prev, newUserMessage, responseMessage]);
+      } else {
+        // In chat mode, the user's message is already displayed. Just add the AI's response.
+        setMessages(prev => [...prev, responseMessage]);
+      }
 
     } catch (e) {
       console.error(e);
