@@ -237,12 +237,15 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
         </div>
 
         {/* Contact Info */}
-        <div className="text-center pt-2 pb-6">
+        <div className="text-center pt-2 pb-6 space-y-1">
             <p className="text-sm text-brand-text-dark font-arabic">
                 للتواصل أو الإبلاغ عن مشكلة: 
                 <a href="mailto:bensadelfy@gmail.com" className="font-medium text-amber-500 hover:text-amber-400 transition-colors underline decoration-dotted underline-offset-4 mr-1">
                     bensadelfy@gmail.com
                 </a>
+            </p>
+            <p className="text-xs text-stone-600 font-mono">
+                Storify v1.0.0 - Public Release
             </p>
         </div>
 

@@ -219,7 +219,7 @@ export const saveStoryState = async (userId: string, bookId: string, state: Stor
         inventory: state.inventory,
         discoveries: state.discoveries,
     });
-    if (error) console.error("Error saving story state:", error);
+    if (error) console.error("Error saving story state:", JSON.stringify(error, null, 2));
 };
 
 export const saveChatHistory = async (userId: string, characterId: string, messages: Message[]) => {
@@ -228,7 +228,7 @@ export const saveChatHistory = async (userId: string, characterId: string, messa
         character_id: characterId,
         messages,
     });
-    if (error) console.error("Error saving chat history:", error);
+    if (error) console.error("Error saving chat history:", JSON.stringify(error, null, 2));
 };
 
 // --- Novel Suggestions ---

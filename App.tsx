@@ -244,47 +244,6 @@ export default function App() {
     setGlobalProgress(averageProgress);
   }, [storyStates, allBooks]);
   
-    // --- AUTOSAVE Story State ---
-    const storySaveTimeoutRef = useRef<number | null>(null);
-    useEffect(() => {
-        if (!isInitialDataLoaded.current || !currentUser || !selectedBook || view !== 'story') {
-            return;
-        }
-
-        if (discoveries.length === 0) {
-            return;
-        }
-
-        if (storySaveTimeoutRef.current) clearTimeout(storySaveTimeoutRef.current);
-
-        storySaveTimeoutRef.current = window.setTimeout(() => {
-            const currentState: StoryState = { messages, storyProgress, inventory, discoveries };
-            db.saveStoryState(currentUser.id, selectedBook.id, currentState);
-        }, 1500); 
-
-        return () => {
-            if (storySaveTimeoutRef.current) clearTimeout(storySaveTimeoutRef.current);
-        };
-    }, [messages, storyProgress, inventory, discoveries, currentUser, selectedBook, view]);
-
-    // --- AUTOSAVE Chat History ---
-    const chatSaveTimeoutRef = useRef<number | null>(null);
-    useEffect(() => {
-        if (!isInitialDataLoaded.current || !currentUser || !selectedCharacter || view !== 'chat') {
-            return;
-        }
-
-        if (chatSaveTimeoutRef.current) clearTimeout(chatSaveTimeoutRef.current);
-
-        chatSaveTimeoutRef.current = window.setTimeout(() => {
-            db.saveChatHistory(currentUser.id, selectedCharacter.id, messages);
-        }, 1500); 
-
-        return () => {
-            if (chatSaveTimeoutRef.current) clearTimeout(chatSaveTimeoutRef.current);
-        };
-    }, [messages, currentUser, selectedCharacter, view]);
-
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -341,16 +300,22 @@ export default function App() {
   const handleSetView = async (newView: View) => {
     if (!currentUser) return;
     
+    // --- Save state before changing view ---
     if (view === 'story' && newView !== 'story' && selectedBook) {
-        if (discoveries.length > 0) {
+        if (messages.length > 0) {
             const currentState: StoryState = { messages, storyProgress, inventory, discoveries };
             setStoryStates(prev => ({...prev, [selectedBook.id]: currentState}));
+            db.saveStoryState(currentUser.id, selectedBook.id, currentState);
         }
     }
     if (view === 'chat' && newView !== 'chat' && selectedCharacter) {
-        setChatHistories(prev => ({...prev, [selectedCharacter.id]: messages}));
+        if (messages.length > 0) {
+            setChatHistories(prev => ({...prev, [selectedCharacter.id]: messages}));
+            db.saveChatHistory(currentUser.id, selectedCharacter.id, messages);
+        }
     }
     
+    // --- Reset/Prepare state for new view ---
     if (newView === 'library') {
       setSelectedBook(null);
       setSelectedCharacter(null);
@@ -374,10 +339,14 @@ export default function App() {
   }
   
   const handleBackToChatsList = () => {
-    if (!currentUser) return;
-    if (selectedCharacter) {
-        setChatHistories(prev => ({ ...prev, [selectedCharacter.id]: messages }));
-    }
+    if (!currentUser || !selectedCharacter) return;
+    
+    // Immediately save the latest chat history to DB before navigating away.
+    db.saveChatHistory(currentUser.id, selectedCharacter.id, messages);
+    
+    // Also update local state for faster UI response.
+    setChatHistories(prev => ({ ...prev, [selectedCharacter.id]: messages }));
+    
     setSelectedCharacter(null);
     setView('chatsList');
   }
@@ -442,13 +411,9 @@ export default function App() {
 
     const text = typeof choice === 'string' ? choice : choice.text;
     const newUserMessage: Message = { role: Role.USER, content: text, timestamp: Date.now() };
-    
+
     const messagesForApi = [...messages, newUserMessage];
-
-    if (!isStoryMode) {
-      setMessages(messagesForApi);
-    }
-
+    setMessages(messagesForApi);
     setIsLoading(true);
 
     const currentBook = bookForStory || selectedBook;
