@@ -58,7 +58,11 @@ export const UsersModal: React.FC<UsersModalProps> = ({ isOpen, onClose, users, 
                             return (
                                 <div 
                                     key={featuredUser.id} 
-                                    className={`flex items-center p-3 gap-4 rounded-xl transition-colors duration-200 border ${isCurrentUser ? 'bg-amber-900/20 border-amber-500/50' : 'bg-brand-surface-dark/50 border-white/10'}`}
+                                    className={`flex items-center p-3 gap-4 rounded-xl transition-all duration-300 border ${
+                                        isCurrentUser 
+                                        ? 'bg-amber-900/20 border-amber-500/50 scale-105 shadow-lg' 
+                                        : 'bg-brand-surface-dark/50 border-white/10 opacity-50 blur-sm'
+                                    }`}
                                 >
                                     <div className="w-12 h-12 rounded-full bg-gradient-bronze-warm flex items-center justify-center font-bold text-xl text-white border-2 border-white/20 flex-shrink-0 overflow-hidden">
                                         {featuredUser.avatar_url ? (
