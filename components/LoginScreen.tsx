@@ -56,6 +56,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         setError('');
 
         try {
+            // Fetch IP address first
+            let userIp: string | undefined;
+            try {
+                const ipResponse = await fetch('/.netlify/functions/get-user-info');
+                if (ipResponse.ok) {
+                    const ipData = await ipResponse.json();
+                    userIp = ipData.ip;
+                }
+            } catch (ipError) {
+                console.warn("Could not fetch user IP:", ipError);
+                // Continue without IP if it fails
+            }
+
             const hashedPassword = await hashPassword(password);
             const existingUser = await getUserProfileByName(trimmedName);
             
@@ -71,9 +84,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     return;
                 }
                 
-                // Successful login, check for avatar update
+                // Successful login, check for updates
+                const updates: { avatar_url?: string; last_ip?: string } = {};
                 if (avatar_url && avatar_url !== existingUser.avatar_url) {
-                    const updatedUser = await updateUserProfile(existingUser.id, { avatar_url });
+                    updates.avatar_url = avatar_url;
+                }
+                if (userIp && userIp !== existingUser.last_ip) {
+                    updates.last_ip = userIp;
+                }
+
+                if (Object.keys(updates).length > 0) {
+                    const updatedUser = await updateUserProfile(existingUser.id, updates);
                     onLoginSuccess(updatedUser || existingUser);
                 } else {
                     onLoginSuccess(existingUser);
@@ -85,7 +106,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     setIsLoading(false);
                     return;
                 }
-                const newUser = await createUserProfile(trimmedName, hashedPassword, avatar_url);
+                const newUser = await createUserProfile(trimmedName, hashedPassword, avatar_url, userIp);
                 if (newUser) {
                     onLoginSuccess(newUser);
                 } else {

@@ -13,7 +13,8 @@ CREATE TABLE profiles (
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   name text UNIQUE NOT NULL,
   avatar_url text,
-  password_hash text NOT NULL
+  password_hash text NOT NULL,
+  last_ip text
 );
 
 -- 2. Books Table
@@ -213,12 +214,12 @@ export const getUserProfileById = async (id: string): Promise<User | null> => {
     return data;
 };
 
-export const updateUserProfile = async (userId: string, updates: { avatar_url: string }): Promise<User | null> => {
+export const updateUserProfile = async (userId: string, updates: { avatar_url?: string; last_ip?: string; }): Promise<User | null> => {
     const { data, error } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', userId)
-        .select('id, name, avatar_url, created_at')
+        .select('*')
         .single();
     if (error) {
         console.error("Error updating user profile:", error);
@@ -227,11 +228,11 @@ export const updateUserProfile = async (userId: string, updates: { avatar_url: s
     return data;
 };
 
-export const createUserProfile = async (name: string, password_hash: string, avatar_url?: string): Promise<User | null> => {
+export const createUserProfile = async (name: string, password_hash: string, avatar_url?: string, last_ip?: string): Promise<User | null> => {
     const { data, error } = await supabase
         .from('profiles')
-        .insert({ name, password_hash, avatar_url })
-        .select('id, name, avatar_url, created_at')
+        .insert({ name, password_hash, avatar_url, last_ip })
+        .select('*')
         .single();
     if (error) {
         console.error("Error creating user profile:", error);

@@ -126,6 +126,7 @@ export interface User {
   avatar_url?: string;
   unlocked_achievements?: string[];
   global_progress?: number;
+  last_ip?: string;
 }
 
 // FIX: Added missing type definitions to resolve import errors.
