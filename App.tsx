@@ -141,7 +141,6 @@ export default function App() {
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [storyProgress, setStoryProgress] = useState(0);
   const [lastUnlockedAchievement, setLastUnlockedAchievement] = useState<string | null>(null);
   const [modalTitle, setModalTitle] = useState<string>('');
@@ -264,12 +263,6 @@ export default function App() {
     setGlobalProgress(averageProgress);
   }, [storyStates, allBooks]);
   
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove(theme === 'light' ? 'dark' : 'light');
-    root.classList.add(theme);
-  }, [theme]);
 
   const handleLoginSuccess = (user: User) => {
       setCurrentUser(user);
@@ -573,8 +566,6 @@ export default function App() {
         {view !== 'story' && view !== 'chat' && view !== 'behaviorAnalysis' && (
           <TopHeader 
             user={currentUser} 
-            theme={theme} 
-            onThemeToggle={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
             globalProgress={globalProgress} 
           />
         )}

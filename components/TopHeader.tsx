@@ -1,5 +1,4 @@
 import React from 'react';
-import { ThemeToggle } from './ThemeToggle';
 import { User } from '../types';
 
 const VerifiedBadge: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
@@ -17,12 +16,10 @@ const VerifiedBadge: React.FC<{ className?: string }> = ({ className = "w-5 h-5"
 
 interface TopHeaderProps {
   user: User;
-  theme: 'light' | 'dark';
-  onThemeToggle: () => void;
   globalProgress: number;
 }
 
-export const TopHeader: React.FC<TopHeaderProps> = ({ user, theme, onThemeToggle, globalProgress }) => (
+export const TopHeader: React.FC<TopHeaderProps> = ({ user, globalProgress }) => (
     <header className="flex-shrink-0 w-full p-4 flex flex-col gap-4 text-brand-text-light">
         <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
@@ -39,9 +36,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ user, theme, onThemeToggle
                         {user.name === 'bensadel' && <VerifiedBadge />}
                     </h1>
                  </div>
-            </div>
-            <div className="flex items-center gap-4">
-                <ThemeToggle theme={theme} onToggle={onThemeToggle} />
             </div>
         </div>
         <div>
