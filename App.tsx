@@ -233,13 +233,16 @@ export default function App() {
       setGlobalProgress(0);
       return;
     }
-    // FIX: Explicitly typing the accumulator (`sum`) and the current value (`state`)
-    // prevents a potential runtime error if the `storyProgress` property is not
-    // correctly inferred as a number, which can corrupt the final calculation.
-    const totalProgress = startedStories.reduce((sum: number, state: StoryState) => {
+    // FIX: Replaced reduce with a more robust for...of loop to prevent type errors
+    // when calculating total progress. This ensures that even if storyProgress is
+    // not a number, it is safely handled without corrupting the calculation.
+    let totalProgress = 0;
+    for (const state of startedStories) {
       const progress = Number(state.storyProgress || 0);
-      return sum + (Number.isNaN(progress) ? 0 : progress);
-    }, 0);
+      if (!isNaN(progress)) {
+        totalProgress += progress;
+      }
+    }
     const averageProgress = totalProgress / allBooks.length;
     setGlobalProgress(averageProgress);
   }, [storyStates, allBooks]);
