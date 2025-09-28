@@ -1,0 +1,22 @@
+# إعدادات البناء الأساسية
+[build]
+  # الأمر الذي يستخدمه Netlify لبناء موقعك
+  command = "npm run build"
+  
+  # المجلد الذي يحتوي على الملفات النهائية بعد البناء
+  publish = "dist"
+  
+  # هنا نخبر Netlify بتمرير مفتاح الواجهة البرمجية لـ Gemini
+  # تأكد من أنك قمت بإضافته في إعدادات Netlify باسم GEMINI_API_KEY
+  environment = { GEMINI_API_KEY = "$GEMINI_API_KEY" }
+
+# إعدادات الدوال السحابية (Serverless Functions)
+[functions]
+  directory = "netlify/functions"
+
+# قاعدة إعادة توجيه مهمة للتطبيقات أحادية الصفحة (SPA) مثل React
+# هذا يضمن أن جميع المسارات تعمل بشكل صحيح عند تحديث الصفحة
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
