@@ -31,14 +31,14 @@ export const SuggestionsModal: React.FC<SuggestionsModalProps> = ({ isOpen, onCl
         
         {/* Suggestions List */}
         <div className="overflow-y-auto px-6 space-y-4 flex-grow">
-          {suggestions.sort((a,b) => b.votes - a.votes).map(suggestion => (
+          {suggestions.sort((a,b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes)).map(suggestion => (
             <div key={suggestion.id} className="flex items-start gap-4 p-4 bg-brand-bg-dark rounded-lg">
               <button 
                 onClick={() => onVote(suggestion.id)}
                 className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors ${userVotes[suggestion.id] ? 'bg-amber-500 text-white' : 'bg-brand-surface-dark hover:bg-stone-700'}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                <span className="font-bold font-mono text-sm">{suggestion.votes}</span>
+                <span className="font-bold font-mono text-sm">{suggestion.upvotes - suggestion.downvotes}</span>
               </button>
               <div className="flex-1">
                 <p className="text-brand-text-light font-arabic">{suggestion.text}</p>

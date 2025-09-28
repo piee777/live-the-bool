@@ -233,9 +233,9 @@ export default function App() {
       setGlobalProgress(0);
       return;
     }
-    // FIX: The `state` variable within the reduce function was being inferred as `unknown`,
-    // causing a type error during arithmetic operations. By explicitly typing `sum` as
-    // a `number` and `state` as `StoryState`, we ensure type safety and correct calculations.
+    // FIX: Explicitly typing the accumulator (`sum`) and the current value (`state`)
+    // prevents a potential runtime error if the `storyProgress` property is not
+    // correctly inferred as a number, which can corrupt the final calculation.
     const totalProgress = startedStories.reduce((sum: number, state: StoryState) => {
       const progress = Number(state.storyProgress || 0);
       return sum + (Number.isNaN(progress) ? 0 : progress);

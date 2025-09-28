@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   define: {
     // The API key is injected at build time from the environment variable.
-    'process.env.API_KEY': JSON.stringify(process.env.VITE_GEMINI_API_KEY),
+    // Using GEMINI_API_KEY to match Netlify build environment variable.
+    'process.env.API_KEY': JSON.stringify(process.env.GEMINI_API_KEY),
   },
 })
