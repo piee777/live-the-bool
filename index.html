@@ -10,11 +10,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
+      html, body, #root {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
       body {
         font-family: 'Poppins', 'Tajawal', sans-serif;
         background-color: #1c1917; /* Dark Charcoal/Umber */
         background-image: radial-gradient(circle at top right, rgba(146, 64, 14, 0.2), transparent 40%),
                           radial-gradient(circle at bottom left, rgba(153, 27, 27, 0.2), transparent 50%);
+        overflow: hidden; /* Prevent unwanted scrollbars on the body */
       }
       .font-arabic {
         font-family: 'Tajawal', sans-serif;
