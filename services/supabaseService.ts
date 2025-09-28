@@ -14,7 +14,8 @@ CREATE TABLE profiles (
   name text UNIQUE NOT NULL,
   avatar_url text,
   password_hash text NOT NULL,
-  last_ip text
+  last_ip text,
+  country text
 );
 
 -- 2. Books Table
@@ -214,7 +215,7 @@ export const getUserProfileById = async (id: string): Promise<User | null> => {
     return data;
 };
 
-export const updateUserProfile = async (userId: string, updates: { avatar_url?: string; last_ip?: string; }): Promise<User | null> => {
+export const updateUserProfile = async (userId: string, updates: { avatar_url?: string; last_ip?: string; country?: string; }): Promise<User | null> => {
     const { data, error } = await supabase
         .from('profiles')
         .update(updates)
@@ -228,10 +229,10 @@ export const updateUserProfile = async (userId: string, updates: { avatar_url?: 
     return data;
 };
 
-export const createUserProfile = async (name: string, password_hash: string, avatar_url?: string, last_ip?: string): Promise<User | null> => {
+export const createUserProfile = async (name: string, password_hash: string, avatar_url?: string, last_ip?: string, country?: string): Promise<User | null> => {
     const { data, error } = await supabase
         .from('profiles')
-        .insert({ name, password_hash, avatar_url, last_ip })
+        .insert({ name, password_hash, avatar_url, last_ip, country })
         .select('*')
         .single();
     if (error) {

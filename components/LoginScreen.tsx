@@ -56,17 +56,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         setError('');
 
         try {
-            // Fetch IP address first
+            // Fetch IP and country from backend function
             let userIp: string | undefined;
+            let userCountry: string | undefined;
             try {
-                const ipResponse = await fetch('/.netlify/functions/get-user-info');
-                if (ipResponse.ok) {
-                    const ipData = await ipResponse.json();
-                    userIp = ipData.ip;
+                const userInfoResponse = await fetch('/.netlify/functions/get-user-info');
+                if (userInfoResponse.ok) {
+                    const userInfo = await userInfoResponse.json();
+                    userIp = userInfo.ip;
+                    userCountry = userInfo.country;
+                } else {
+                   console.warn("User info function failed:", userInfoResponse.statusText);
                 }
-            } catch (ipError) {
-                console.warn("Could not fetch user IP:", ipError);
-                // Continue without IP if it fails
+            } catch (error) {
+                console.warn("Could not fetch user info:", error);
             }
 
             const hashedPassword = await hashPassword(password);
@@ -85,12 +88,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 }
                 
                 // Successful login, check for updates
-                const updates: { avatar_url?: string; last_ip?: string } = {};
+                const updates: { avatar_url?: string; last_ip?: string; country?: string; } = {};
                 if (avatar_url && avatar_url !== existingUser.avatar_url) {
                     updates.avatar_url = avatar_url;
                 }
                 if (userIp && userIp !== existingUser.last_ip) {
                     updates.last_ip = userIp;
+                }
+                if (userCountry && userCountry !== existingUser.country) {
+                    updates.country = userCountry;
                 }
 
                 if (Object.keys(updates).length > 0) {
@@ -106,7 +112,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     setIsLoading(false);
                     return;
                 }
-                const newUser = await createUserProfile(trimmedName, hashedPassword, avatar_url, userIp);
+                const newUser = await createUserProfile(trimmedName, hashedPassword, avatar_url, userIp, userCountry);
                 if (newUser) {
                     onLoginSuccess(newUser);
                 } else {

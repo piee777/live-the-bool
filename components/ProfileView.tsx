@@ -192,15 +192,6 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
                 </div>
             </div>
         </div>
-        
-        {/* Technical Details */}
-        <div className="bg-brand-surface-dark p-4 sm:p-6 rounded-xl border border-white/10">
-            <h3 className="text-xl font-bold font-arabic mb-4 text-center">تفاصيل الجلسة</h3>
-            <div className="flex items-center justify-between p-3 bg-brand-bg-dark rounded-lg">
-                <span className="font-arabic text-brand-text-medium">آخر عنوان IP مسجل</span>
-                <span className="font-mono text-amber-400 tracking-wider">{user.last_ip || 'غير متوفر'}</span>
-            </div>
-        </div>
 
         {/* Community Button */}
         <div>

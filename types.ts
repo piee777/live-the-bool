@@ -127,6 +127,7 @@ export interface User {
   unlocked_achievements?: string[];
   global_progress?: number;
   last_ip?: string;
+  country?: string;
 }
 
 // FIX: Added missing type definitions to resolve import errors.
