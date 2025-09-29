@@ -53,7 +53,31 @@ const parseGeminiResponse = (responseText: string, isStoryMode: boolean): Messag
 
   if (isStoryMode) {
     const narrationMatch = responseText.match(/\[NARRATION\]([\s\S]*?)(?=\[|$)/);
-    message.content = narrationMatch ? narrationMatch[1].trim() : "حدث خطأ في السرد. حاول مرة أخرى.";
+    let content = "";
+
+    if (narrationMatch && narrationMatch[1]) {
+        content = narrationMatch[1].trim();
+    } else {
+        // Graceful fallback if the model forgets the [NARRATION] tag.
+        // Assume any text before the first known tag is the narration.
+        const firstTagIndex = responseText.search(/\[[A-Z_]+(?::[^\]]*)?\]/);
+        if (firstTagIndex === -1) {
+            // No tags found, the entire response is narration.
+            content = responseText.trim();
+        } else {
+            // Found a tag, so narration is everything before it.
+            content = responseText.substring(0, firstTagIndex).trim();
+        }
+    }
+    
+    // Final check. If the original response was not empty, but our parsed content is,
+    // and there are no other actionable parts (like choices or a fate roll), it's an error.
+    const hasActionableTags = /\[CHOICE\]|\[FATE_ROLL:/.test(responseText);
+    if (!content && responseText.trim() && !hasActionableTags) {
+        message.content = "حدث خطأ في السرد. حاول مرة أخرى.";
+    } else {
+        message.content = content;
+    }
 
     const progressMatch = responseText.match(/\[PROGRESS:(\d+)\]/);
     if (progressMatch) message.progressIncrement = parseInt(progressMatch[1], 10);

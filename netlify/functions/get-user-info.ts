@@ -14,7 +14,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
   
   // Use a free geolocation API to get the country
   try {
-    const geoResponse = await fetch(`http://ip-api.com/json/${clientIp}?fields=country`);
+    const geoResponse = await fetch(`https://ip-api.com/json/${clientIp}?fields=country`);
     if (geoResponse.ok) {
         const geoData = await geoResponse.json();
         const country = geoData.country || null;

@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "description": "Serverless functions for the Storify application.",
   "main": "get-ai-response.ts",
+  "dependencies": {
+    "@netlify/functions": "^4.2.6"
+  },
   "author": "",
   "license": "ISC"
 }
