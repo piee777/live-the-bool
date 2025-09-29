@@ -113,6 +113,8 @@ export const StoryView: React.FC<StoryViewProps> = ({ message, isLoading, onChoi
     message.effect ? `effect-${message.effect}` : ''
   }`;
 
+  const controlsDisabled = isLoading || !typingComplete;
+
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-end p-4 sm:p-6 overflow-hidden bg-brand-bg-dark">
         {isDiscoveriesOpen && <DiscoveriesModal discoveries={discoveries} onClose={() => setIsDiscoveriesOpen(false)} />}
@@ -152,7 +154,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ message, isLoading, onChoi
             {hasChoices && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {message.choices!.map((choice, index) => (
-                       <ChoiceButton key={`${index}-${choice.text}`} choice={choice} onClick={onChoiceSelect} isLoading={isLoading} />
+                       <ChoiceButton key={`${index}-${choice.text}`} choice={choice} onClick={onChoiceSelect} isLoading={controlsDisabled} />
                     ))}
                 </div>
             )}
@@ -190,12 +192,12 @@ export const StoryView: React.FC<StoryViewProps> = ({ message, isLoading, onChoi
                         type="text"
                         placeholder="ماذا ستفعل؟"
                         className="flex-1 p-3 px-5 bg-brand-surface-dark border-2 border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-amber-600 transition-all text-brand-text-light placeholder-brand-text-dark font-arabic"
-                        disabled={isLoading}
+                        disabled={controlsDisabled}
                     />
                     <button
                         type="submit"
                         className="bg-gradient-crimson-amber text-white rounded-full p-3 hover:shadow-glow-amber disabled:opacity-50 disabled:bg-slate-600 transition-all transform hover:scale-110 disabled:scale-100 shadow-lg"
-                        disabled={isLoading}
+                        disabled={controlsDisabled}
                         aria-label="Send action"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
