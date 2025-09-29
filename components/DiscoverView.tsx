@@ -16,6 +16,7 @@ const VerifiedBadge: React.FC<{ className?: string }> = ({ className = "w-5 h-5"
 interface DiscoverViewProps {
     posts: DiscoveryPost[];
     currentUser: User;
+    allUsers: User[];
     onAddPost: (postData: Omit<DiscoveryPost, 'id' | 'author' | 'created_at' | 'likes' | 'replies'>) => void;
     onLikePost: (postId: string) => void;
     onAddReply: (postId: string, replyText: string) => void;
@@ -253,19 +254,22 @@ const PinnedPostCard: React.FC<{ post: DiscoveryPost }> = ({ post }) => {
     );
 };
 
-export const DiscoverView: React.FC<DiscoverViewProps> = ({ posts, currentUser, onAddPost, onLikePost, onAddReply }) => {
+export const DiscoverView: React.FC<DiscoverViewProps> = ({ posts, currentUser, allUsers, onAddPost, onLikePost, onAddReply }) => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     
     // Sort posts by date, newest first
     const sortedPosts = [...posts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     
+    // Find bensadel user to get their avatar
+    const bensadelUser = allUsers.find(u => u.name === 'bensadel');
+
     // Hardcoded pinned post as requested
     const pinnedPost: DiscoveryPost = {
         id: 'pinned-post-01',
         author: {
             id: 'bensadel-dev-id',
             name: 'bensadel',
-            avatar_url: currentUser.name === 'bensadel' ? currentUser.avatar_url : undefined,
+            avatar_url: bensadelUser?.avatar_url,
         },
         type: 'discussion',
         title: 'إعلان هام',

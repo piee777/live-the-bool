@@ -521,6 +521,7 @@ export default function App() {
             <DiscoverView 
                 posts={discoveryPosts}
                 currentUser={currentUser}
+                allUsers={allUsers}
                 onAddPost={handleAddPost}
                 onLikePost={handleLikePost}
                 onAddReply={handleAddReply}
