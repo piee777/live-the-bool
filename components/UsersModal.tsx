@@ -55,34 +55,31 @@ export const UsersModal: React.FC<UsersModalProps> = ({ isOpen, onClose, users, 
                     <div className="space-y-3">
                         {users.map(featuredUser => {
                             const isCurrentUser = featuredUser.id === currentUser.id;
-                            const displayName = isCurrentUser ? featuredUser.name : 'قارئ غامض';
-                            const displayTitle = isCurrentUser ? featuredUser.title : 'لقب غامض';
-                            const displayAvatarUrl = isCurrentUser ? featuredUser.avatar_url : undefined;
-
+                            
                             return (
                                 <div 
                                     key={featuredUser.id} 
                                     className={`flex items-center p-3 gap-4 rounded-xl transition-all duration-300 border ${
                                         isCurrentUser 
                                         ? 'bg-amber-900/20 border-amber-500/50 scale-105 shadow-lg' 
-                                        : 'bg-brand-surface-dark/50 border-white/10 opacity-50'
+                                        : 'bg-brand-surface-dark/50 border-white/10'
                                     }`}
                                 >
-                                    <div className="w-12 h-12 rounded-full bg-gradient-bronze-warm flex items-center justify-center font-bold text-xl text-white border-2 border-white/20 flex-shrink-0 overflow-hidden">
-                                        {displayAvatarUrl ? (
-                                            <img src={displayAvatarUrl} alt={displayName} className="w-full h-full object-cover" />
+                                    <div className={`w-12 h-12 rounded-full bg-gradient-bronze-warm flex items-center justify-center font-bold text-xl text-white border-2 border-white/20 flex-shrink-0 overflow-hidden ${!isCurrentUser ? 'blur-sm select-none' : ''}`}>
+                                        {featuredUser.avatar_url ? (
+                                            <img src={featuredUser.avatar_url} alt={featuredUser.name} className="w-full h-full object-cover" />
                                         ) : (
-                                            <span>{isCurrentUser ? displayName.charAt(0) : '👤'}</span>
+                                            <span>{featuredUser.name.charAt(0)}</span>
                                         )}
                                     </div>
-                                    <div className="flex-grow text-right">
+                                    <div className={`flex-grow text-right ${!isCurrentUser ? 'blur-sm select-none' : ''}`}>
                                         <p className="font-bold text-lg font-arabic text-brand-text-light flex items-center">
-                                            {displayName}
-                                            {isCurrentUser && featuredUser.name === 'bensadel' && <VerifiedBadge className="w-4 h-4" />}
+                                            {featuredUser.name}
+                                            {featuredUser.name === 'bensadel' && <VerifiedBadge className="w-4 h-4" />}
                                         </p>
                                         <p className="text-sm text-amber-400 font-arabic flex items-center gap-2">
-                                            <span className="text-base">{isCurrentUser ? getTitleIcon(displayTitle) : '❔'}</span>
-                                            {displayTitle}
+                                            <span className="text-base">{getTitleIcon(featuredUser.title)}</span>
+                                            {featuredUser.title}
                                         </p>
                                     </div>
                                 </div>

@@ -69,10 +69,10 @@ const achievementsList = [
 const AchievementCard: React.FC<{ achievement: typeof achievementsList[0]; isAchieved: boolean; }> = ({ achievement, isAchieved }) => {
     return (
         <div
-            className={`flex flex-col items-center text-center p-3 rounded-xl transition-all duration-500 transform group ${
+            className={`flex flex-col items-center text-center p-3 rounded-xl transition-all duration-500 transform group border hover:-translate-y-1 ${
                 isAchieved 
-                ? 'bg-brand-surface-dark border border-amber-500/30 shadow-[0_0_15px_rgba(252,211,77,0.2)] hover:-translate-y-1' 
-                : 'bg-stone-800/80 border border-transparent opacity-60'
+                ? 'bg-brand-surface-dark border-amber-500/30 shadow-[0_0_15px_rgba(252,211,77,0.2)]' 
+                : 'bg-stone-800/80 border-transparent blur-sm'
             }`}
             title={isAchieved ? achievement.description : 'إنجاز مقفل'}
         >
@@ -86,7 +86,7 @@ const AchievementCard: React.FC<{ achievement: typeof achievementsList[0]; isAch
                     <div className="absolute inset-0 bg-gradient-to-t from-amber-500/20 to-transparent animate-pulse-slow rounded-full" style={{ animationDuration: '3s' }}></div>
                 )}
                 <div className="relative transition-opacity duration-500">
-                    {isAchieved ? achievement.icon : <LockIcon />}
+                    {achievement.icon}
                 </div>
             </div>
             <h3 className={`font-bold text-xs sm:text-sm font-arabic h-10 flex items-center justify-center transition-colors duration-500 ${
