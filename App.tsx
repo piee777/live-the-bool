@@ -207,7 +207,7 @@ export default function App() {
             booksData, 
             storyStatesData, 
             chatHistoriesData,
-            usersData,
+            allUsersData,
         ] = await Promise.all([
             db.getBooks(),
             db.getStoryStates(currentUser.id),
@@ -218,7 +218,7 @@ export default function App() {
         setAllBooks(booksData);
         setStoryStates(storyStatesData);
         setChatHistories(chatHistoriesData);
-        setAllUsers(usersData);
+        setAllUsers(allUsersData);
         
         setIsDataLoading(false);
     };

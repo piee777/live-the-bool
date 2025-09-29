@@ -132,25 +132,9 @@ const RadarChart: React.FC<{ data: { axis: string; value: number; color: string 
 
 export const ProfileView: React.FC<ProfileViewProps> = (props) => {
   const { user, unlockedAchievements, allUsers } = props;
-  const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
   const personalityData = getPersonalityData(unlockedAchievements);
   const thinkingProfileTitle = getThinkingProfileTitle(unlockedAchievements);
-  
-  // Special titles for specific users
-  const specialTitles: Record<string, string> = {
-    'bensadel': 'المطور',
-    'أرسطو': 'الفيلسوف الوجودي',
-    'سيمون': 'صانعة القرار',
-    'سارتر': 'المفكر العبثي',
-  };
-
-  const modalUsers = allUsers.map(u => ({
-    id: u.id,
-    name: u.name,
-    avatar_url: u.avatar_url,
-    title: specialTitles[u.name] || 'قارئ', // Default title is 'Reader'
-  }));
-
+  const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
 
   return (
     <div className="p-4 sm:p-6 w-full h-full overflow-y-auto animate-fade-in bg-brand-bg-dark">
@@ -193,26 +177,15 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
             </div>
         </div>
 
-        {/* Community Button */}
-        <div>
+        {/* Community Section */}
+        <div className="bg-brand-surface-dark p-4 sm:p-6 rounded-xl border border-white/10">
             <h3 className="text-xl font-bold font-arabic mb-4 text-center">المجتمع</h3>
             <button 
                 onClick={() => setIsUsersModalOpen(true)}
-                className="w-full flex items-center p-4 gap-4 bg-brand-surface-dark/50 hover:bg-brand-surface-dark rounded-xl transition-colors duration-200 border border-white/10 text-left"
+                className="w-full p-4 bg-brand-bg-dark hover:bg-stone-800/50 rounded-lg text-brand-text-light font-arabic transition-colors flex justify-between items-center"
             >
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-tr from-brand-amber to-brand-crimson flex items-center justify-center text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
-                </svg>
-                </div>
-                <div>
-                <p className="font-bold text-lg font-arabic text-brand-text-light">
-                    تصفح المستخدمين
-                </p>
-                <p className="text-sm text-brand-text-medium font-arabic">
-                    شاهد الألقاب والإنجازات لأبرز أعضاء المجتمع.
-                </p>
-                </div>
+                <span>تصفح أبرز المستخدمين</span>
+                <span className="text-amber-500 font-mono">{allUsers.length}+</span>
             </button>
         </div>
 
@@ -250,11 +223,17 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
         </div>
 
       </div>
-       <UsersModal 
-        isOpen={isUsersModalOpen} 
-        onClose={() => setIsUsersModalOpen(false)} 
-        users={modalUsers} 
-        currentUser={user}
+      <UsersModal 
+          isOpen={isUsersModalOpen}
+          onClose={() => setIsUsersModalOpen(false)}
+          users={allUsers.map(u => ({
+              id: u.id,
+              name: u.name,
+              avatar_url: u.avatar_url,
+              // FIX: Handle cases where unlocked_achievements might be null or undefined
+              title: getThinkingProfileTitle(u.unlocked_achievements || []) 
+          }))}
+          currentUser={user}
       />
     </div>
   );
