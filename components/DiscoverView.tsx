@@ -218,17 +218,70 @@ const CreatePostModal: React.FC<{
 };
 
 
+const PinnedPostCard: React.FC<{ post: DiscoveryPost }> = ({ post }) => {
+    return (
+        <div className="relative w-full rounded-2xl border-2 border-amber-500/50 shadow-glow-amber bg-gradient-to-br from-amber-800/40 to-amber-950/30 overflow-hidden animate-fade-in-up">
+            <div className="absolute top-0 right-0 h-16 w-16" style={{ pointerEvents: 'none' }}>
+                <div className="absolute transform rotate-45 bg-amber-500 text-center text-white font-semibold py-1 right-[-34px] top-[32px] w-[170px] shadow-lg font-arabic">
+                    مثبت
+                </div>
+            </div>
+
+            <div className="p-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-brand-bg-dark border-2 border-white/20 flex items-center justify-center overflow-hidden">
+                        {post.author.avatar_url ? (
+                            <img src={post.author.avatar_url} alt={post.author.name} className="w-full h-full object-cover" />
+                        ) : (
+                            <span className="font-bold text-lg text-brand-text-medium">{post.author.name.charAt(0)}</span>
+                        )}
+                    </div>
+                    <div>
+                        <p className="font-bold font-arabic text-brand-text-light flex items-center">
+                            {post.author.name}
+                            {post.author.name === 'bensadel' && <VerifiedBadge />}
+                        </p>
+                        <p className="text-xs text-brand-text-dark font-mono">الآن</p>
+                    </div>
+                </div>
+
+                <div className="my-3 pr-2 pt-2">
+                    <p className="text-brand-text-light font-arabic text-base leading-relaxed break-words">{post.content}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const DiscoverView: React.FC<DiscoverViewProps> = ({ posts, currentUser, onAddPost, onLikePost, onAddReply }) => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     
     // Sort posts by date, newest first
     const sortedPosts = [...posts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    
+    // Hardcoded pinned post as requested
+    const pinnedPost: DiscoveryPost = {
+        id: 'pinned-post-01',
+        author: {
+            id: 'bensadel-dev-id',
+            name: 'bensadel',
+            avatar_url: currentUser.name === 'bensadel' ? currentUser.avatar_url : undefined,
+        },
+        type: 'discussion',
+        title: 'إعلان هام',
+        content: 'الموقع مازال في طور التطوير ✨',
+        created_at: new Date().toISOString(),
+        likes: [],
+        replies: [],
+    };
 
     return (
         <div className="relative p-4 sm:p-6 w-full h-full overflow-y-auto animate-fade-in">
             <div className="max-w-xl mx-auto space-y-6 pb-24">
                 <h2 className="text-3xl text-left font-bold font-arabic">اكتشف</h2>
 
+                <PinnedPostCard post={pinnedPost} />
+                
                 {sortedPosts.map(post => (
                     <PostCard key={post.id} post={post} currentUser={currentUser} onLike={onLikePost} onAddReply={onAddReply} />
                 ))}
