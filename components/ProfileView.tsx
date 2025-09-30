@@ -161,6 +161,14 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
                     {user.name === 'bensadel' && <VerifiedBadge className="w-6 h-6" />}
                 </h2>
                 <p className="text-amber-400 font-bold text-lg font-arabic mt-1">{thinkingProfileTitle}</p>
+                {user.country && (
+                     <p className="text-brand-text-medium text-xs font-arabic mt-2 flex items-center justify-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-70" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                        </svg>
+                        {user.country}
+                    </p>
+                )}
                 <p className="text-brand-text-medium text-xs font-arabic mt-2 max-w-xs mx-auto">
                     يتغير هذا اللقب بناءً على قراراتك في القصص وتحليل شخصيتك.
                 </p>

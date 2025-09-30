@@ -12,17 +12,18 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     };
   }
   
-  // Use a free geolocation API to get the country
+  // Use a more reliable geolocation API to get the country
   try {
-    const geoResponse = await fetch(`https://ip-api.com/json/${clientIp}?fields=country`);
+    const geoResponse = await fetch(`https://ipinfo.io/${clientIp}/json`);
     if (geoResponse.ok) {
         const geoData = await geoResponse.json();
-        const country = geoData.country || null;
+        // ipinfo.io returns a country code (e.g., "SA"). Convert it to the full Arabic name.
+        const countryName = geoData.country ? new Intl.DisplayNames(['ar'], { type: 'region' }).of(geoData.country) : null;
         
         return {
             statusCode: 200,
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ip: clientIp, country: country }),
+            body: JSON.stringify({ ip: clientIp, country: countryName || geoData.country || null }),
         };
     } else {
         // Geolocation service failed, return IP only
