@@ -1,6 +1,9 @@
+import { GoogleGenAI } from "@google/genai";
 import { Message, Role, StoryChoice, Discovery } from '../types';
 
-// The parse function remains on the client-side as it only deals with text formatting.
+// Initialize the client directly
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
 const parseGeminiResponse = (responseText: string, isStoryMode: boolean): Message => {
   const message: Message = {
     role: isStoryMode ? Role.NARRATOR : Role.CHARACTER,
@@ -99,30 +102,6 @@ const parseGeminiResponse = (responseText: string, isStoryMode: boolean): Messag
   return message;
 };
 
-// Generic function to call our Netlify backend
-const callApiFunction = async (endpoint: string, payload: object): Promise<any> => {
-  try {
-    const response = await fetch(`/.netlify/functions/${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Server error: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error: any) {
-    console.error(`Error calling Netlify function ${endpoint}:`, error);
-    throw error; // Re-throw to be caught by the calling function
-  }
-};
-
-
 export const getCharacterResponse = async (
   systemInstruction: string,
   history: Message[]
@@ -130,16 +109,29 @@ export const getCharacterResponse = async (
   const isStoryMode = systemInstruction.includes('أنت سيد السرد');
 
   try {
-    const payload = {
-      type: 'chat',
-      systemInstruction,
-      history,
-    };
-    
-    // The response from our function is the raw Gemini response
-    const geminiResponse = await callApiFunction('get-ai-response', payload);
+    // Prepare history for Gemini
+    const geminiHistory = history
+      .filter(msg => msg.role === 'user' || msg.role === 'character' || msg.role === 'narrator')
+      .map(msg => ({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }],
+      }));
 
-    const responseText = geminiResponse.text;
+    // Ensure the conversation doesn't start with a model turn
+    if (geminiHistory.length > 0 && geminiHistory[0].role === 'model') {
+      geminiHistory.shift();
+    }
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: geminiHistory,
+        config: {
+            systemInstruction: systemInstruction,
+        },
+    });
+
+    const responseText = response.text;
+    
     if (!responseText) {
       return { role: Role.SYSTEM, content: "لم يتمكن الذكاء الاصطناعي من إنشاء رد. قد يكون المحتوى غير آمن." };
     }
@@ -147,10 +139,10 @@ export const getCharacterResponse = async (
     return parseGeminiResponse(responseText, isStoryMode);
 
   } catch (error: any) {
-    console.error("Netlify Function Error (getCharacterResponse):", error);
+    console.error("Gemini API Error:", error);
     return {
       role: Role.SYSTEM,
-      content: "حدث خطأ أثناء التواصل مع الخادم. يرجى المحاولة مرة أخرى.",
+      content: "حدث خطأ أثناء الاتصال بالذكاء الاصطناعي. يرجى التحقق من مفتاح API أو المحاولة لاحقًا.",
     };
   }
 };
@@ -163,19 +155,31 @@ export const getBehavioralAnalysis = async (
         return "لم تتخذ قرارات كافية بعد ليتم تحليلها. استمر في القصة وسأشاركك أفكاري قريبًا.";
     }
 
+    const discoveriesSummary = discoveries.map(d => `- (${d.category}): "${d.choiceText}"`).join('\n');
+    const systemInstruction = `أنت الشخصية التي يتفاعل معها اللاعب. هويتك هي:
+${characterPersona}
+مهمتك هي كتابة تحليل شخصي ومباشر للاعب بناءً على قراراته. خاطب اللاعب مباشرة بصيغة "أنت".
+هذه هي القرارات التي اتخذها اللاعب حتى الآن:
+${discoveriesSummary}
+بناءً على هذه القرارات، قم بما يلي:
+1.  **قدم تحليلاً عميقًا:** تحدث عن نمط تفكيره (هل هو عملي، وجودي، عبثي؟).
+2.  **عبّر عن رأيك:** كيف تشعر تجاه أفعاله؟ هل تتفق معها؟ هل تفاجئك؟
+3.  **توقع المستقبل:** ما الذي تتوقعه منه بناءً على سلوكه؟
+اكتب ردك كنص متدفق وطبيعي، كما لو كنت تتحدث معه وجهًا لوجه. اجعل التحليل شخصيًا ومؤثرًا.`;
+
     try {
-       const payload = {
-         type: 'analysis',
-         discoveries,
-         characterPersona,
-       };
+       const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: 'حلل سلوكي.' }] }],
+        config: {
+            systemInstruction: systemInstruction,
+        },
+      });
 
-       const geminiResponse = await callApiFunction('get-ai-response', payload);
-
-       return geminiResponse.text || "لا أستطيع تجميع أفكاري الآن... دعنا نواصل القصة أولاً.";
+       return response.text || "لا أستطيع تجميع أفكاري الآن... دعنا نواصل القصة أولاً.";
 
     } catch (error: any) {
-        console.error("Netlify Function Error (getBehavioralAnalysis):", error);
+        console.error("Gemini Analysis Error:", error);
         return "حدث خطأ أثناء تحليل أفعالك. يرجى المحاولة مرة أخرى.";
     }
 };

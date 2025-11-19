@@ -5,7 +5,9 @@
   "description": "Serverless functions for the Storify application.",
   "main": "get-ai-response.ts",
   "dependencies": {
-    "@netlify/functions": "^4.2.6"
+    "@google/genai": "^1.21.0",
+    "@netlify/functions": "^4.2.6",
+    "@supabase/supabase-js": "^2.44.4"
   },
   "author": "",
   "license": "ISC"

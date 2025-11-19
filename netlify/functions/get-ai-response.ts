@@ -1,12 +1,11 @@
 import type { Handler, HandlerEvent } from "@netlify/functions";
-import { GoogleGenAI, GenerateContentResponse } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { Message, Discovery } from '../../types';
 
-// Initialize the Google AI client with the API key from environment variables
-// This happens once per function invocation, and the instance is reused if the function is warm.
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-
 const handler: Handler = async (event: HandlerEvent) => {
+  // 1. Log method to ensure function is reached
+  console.log(`Function invoked with method: ${event.httpMethod}`);
+
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -15,24 +14,32 @@ const handler: Handler = async (event: HandlerEvent) => {
     };
   }
 
-  if (!process.env.GEMINI_API_KEY) {
-      console.error("GEMINI_API_KEY environment variable not set.");
+  // 2. Check API Key
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+      console.error("CRITICAL: GEMINI_API_KEY is missing in environment variables.");
       return {
           statusCode: 500,
-          body: JSON.stringify({ error: "Internal Server Error: API key not configured." }),
+          body: JSON.stringify({ error: "Server configuration error: API Key missing." }),
           headers: { 'Content-Type': 'application/json' },
       };
   }
 
   try {
+    // Initialize Client inside handler to avoid cold start issues with env vars
+    const ai = new GoogleGenAI({ apiKey: apiKey });
+    
     const body = JSON.parse(event.body || '{}');
     const { type } = body;
 
-    let response: GenerateContentResponse;
+    console.log(`Processing request type: ${type}`);
+
+    let generatedText = "";
 
     if (type === 'chat') {
       const { systemInstruction, history } = body as { systemInstruction: string; history: Message[] };
 
+      // Convert history to Gemini format
       const geminiHistory = history
         .filter(msg => msg.role === 'user' || msg.role === 'character' || msg.role === 'narrator')
         .map(msg => ({
@@ -40,17 +47,21 @@ const handler: Handler = async (event: HandlerEvent) => {
           parts: [{ text: msg.content }],
         }));
 
+      // Ensure the conversation doesn't start with a model turn (Gemini requirement)
       if (geminiHistory.length > 0 && geminiHistory[0].role === 'model') {
         geminiHistory.shift();
       }
 
-      response = await ai.models.generateContent({
+      console.log("Sending request to Gemini model...");
+      const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: geminiHistory,
         config: {
             systemInstruction: systemInstruction,
         },
       });
+      
+      generatedText = response.text || "";
 
     } else if (type === 'analysis') {
       const { discoveries, characterPersona } = body as { discoveries: Discovery[], characterPersona: string };
@@ -67,13 +78,16 @@ ${discoveriesSummary}
 3.  **توقع المستقبل:** ما الذي تتوقعه منه بناءً على سلوكه؟
 اكتب ردك كنص متدفق وطبيعي، كما لو كنت تتحدث معه وجهًا لوجه. اجعل التحليل شخصيًا ومؤثرًا.`;
 
-      response = await ai.models.generateContent({
+      console.log("Sending analysis request to Gemini...");
+      const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: [{ role: 'user', parts: [{ text: 'حلل سلوكي.' }] }],
         config: {
             systemInstruction: systemInstruction,
         },
       });
+
+      generatedText = response.text || "";
 
     } else {
       return {
@@ -83,17 +97,22 @@ ${discoveriesSummary}
       };
     }
 
+    console.log("Gemini response received successfully.");
+
     return {
       statusCode: 200,
-      body: JSON.stringify(response),
+      // Only return the text to keep the payload light and avoid circular JSON errors
+      body: JSON.stringify({ text: generatedText }),
       headers: { 'Content-Type': 'application/json' },
     };
 
   } catch (error: any) {
     console.error("Error in get-ai-response function:", error);
+    
+    // Return the specific error message to help debugging (remove this in production if you want to hide details)
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "An error occurred while processing your request." }),
+      body: JSON.stringify({ error: `AI Service Error: ${error.message}` }),
       headers: { 'Content-Type': 'application/json' },
     };
   }

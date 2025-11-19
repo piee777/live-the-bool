@@ -1,24 +1,29 @@
 import type { Handler, HandlerEvent } from "@netlify/functions";
 import { createClient } from '@supabase/supabase-js';
+import { createHash } from 'crypto';
 
 // These should be set in your Netlify environment variables
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-const hashPassword = async (password: string): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+const hashPassword = (password: string): string => {
+    return createHash('sha256').update(password).digest('hex');
 };
 
 const handler: Handler = async (event: HandlerEvent) => {
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
     }
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+        console.error("Supabase URL or Service Role Key is not configured in Netlify environment variables.");
+        return { 
+            statusCode: 500, 
+            body: JSON.stringify({ error: 'إعدادات الخادم غير مكتملة. يرجى مراجعة مسؤول الموقع.' }) 
+        };
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     try {
         const { name, password, avatar_url } = JSON.parse(event.body || '{}');
@@ -27,7 +32,7 @@ const handler: Handler = async (event: HandlerEvent) => {
             return { statusCode: 400, body: JSON.stringify({ error: 'الاسم وكلمة المرور مطلوبان.' }) };
         }
 
-        const hashedPassword = await hashPassword(password);
+        const hashedPassword = hashPassword(password);
 
         // 1. Check if user exists
         const { data: existingUser, error: fetchError } = await supabase

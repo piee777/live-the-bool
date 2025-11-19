@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { User } from '../types';
+import { supabase } from '../services/supabaseService';
 
 interface LoginScreenProps {
     onLoginSuccess: (user: User) => void;
@@ -12,6 +13,13 @@ const fileToBase64 = (file: File): Promise<string> =>
         reader.onload = () => resolve(reader.result as string);
         reader.onerror = (error) => reject(error);
     });
+
+const hashPassword = async (password: string): Promise<string> => {
+    const msgBuffer = new TextEncoder().encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     const [name, setName] = useState('');
@@ -46,32 +54,56 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         setError('');
 
         try {
-            let avatar_url: string | undefined = undefined;
-            if (avatarFile) {
-                avatar_url = await fileToBase64(avatarFile);
+            const hashedPassword = await hashPassword(password);
+
+            // 1. Check if user exists
+            const { data: existingUser, error: fetchError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('name', trimmedName)
+                .single();
+
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                 throw fetchError;
             }
 
-            const response = await fetch('/.netlify/functions/auth', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: trimmedName,
-                    password: password,
-                    avatar_url: avatar_url,
-                }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'فشل الاتصال بالخادم.');
+            if (existingUser) {
+                // Login
+                if (existingUser.password_hash === hashedPassword) {
+                    onLoginSuccess(existingUser);
+                } else {
+                    setError('كلمة المرور غير صحيحة.');
+                }
+            } else {
+                // Signup
+                if (!avatarFile) {
+                    setError('الصورة الشخصية مطلوبة لإنشاء حساب جديد.');
+                    setIsLoading(false);
+                    return;
+                }
+                
+                const avatar_url = await fileToBase64(avatarFile);
+                
+                const { data: newUser, error: createError } = await supabase
+                    .from('profiles')
+                    .insert({
+                        name: trimmedName,
+                        password_hash: hashedPassword,
+                        avatar_url
+                    })
+                    .select('*')
+                    .single();
+                
+                if (createError) throw createError;
+                
+                if (newUser) {
+                    onLoginSuccess(newUser);
+                }
             }
-            
-            onLoginSuccess(data.user);
-
         } catch (error: any) {
             console.error("Error during login/signup:", error);
             setError(error.message || "حدث خطأ غير متوقع.");
+        } finally {
             setIsLoading(false);
         }
     };
