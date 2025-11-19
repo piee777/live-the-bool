@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 
 const sqlSchema = `
@@ -333,9 +334,51 @@ BEGIN
 END $$;
 `;
 
-// FIX: Added 'export' to make the component available for import in other files.
+const sqlPolicies = `
+-- 1. Enable RLS on all tables
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE books ENABLE ROW LEVEL SECURITY;
+ALTER TABLE characters ENABLE ROW LEVEL SECURITY;
+ALTER TABLE story_states ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_histories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE novel_suggestions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE discovery_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE discovery_post_likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE discovery_post_replies ENABLE ROW LEVEL SECURITY;
+
+-- 2. Allow Public Read Access (Everyone can view content)
+CREATE POLICY "Public Read Books" ON books FOR SELECT USING (true);
+CREATE POLICY "Public Read Characters" ON characters FOR SELECT USING (true);
+CREATE POLICY "Public Read Profiles" ON profiles FOR SELECT USING (true);
+CREATE POLICY "Public Read Posts" ON discovery_posts FOR SELECT USING (true);
+CREATE POLICY "Public Read Replies" ON discovery_post_replies FOR SELECT USING (true);
+CREATE POLICY "Public Read Likes" ON discovery_post_likes FOR SELECT USING (true);
+CREATE POLICY "Public Read Stories" ON story_states FOR SELECT USING (true);
+CREATE POLICY "Public Read Chats" ON chat_histories FOR SELECT USING (true);
+
+-- 3. Allow Public Write Access (Warning: This allows ANYONE with the Anon Key to edit data)
+-- Essential for Client-Side app functionality without Auth Service
+CREATE POLICY "Public Insert Profiles" ON profiles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Update Profiles" ON profiles FOR UPDATE USING (true);
+
+CREATE POLICY "Public Insert Stories" ON story_states FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Update Stories" ON story_states FOR UPDATE USING (true);
+
+CREATE POLICY "Public Insert Chats" ON chat_histories FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Update Chats" ON chat_histories FOR UPDATE USING (true);
+
+CREATE POLICY "Public Insert Suggestions" ON novel_suggestions FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Public Insert Posts" ON discovery_posts FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Public Insert Likes" ON discovery_post_likes FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Delete Likes" ON discovery_post_likes FOR DELETE USING (true);
+
+CREATE POLICY "Public Insert Replies" ON discovery_post_replies FOR INSERT WITH CHECK (true);
+`;
+
 export const SchemaDisplay: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'schema' | 'seed'>('schema');
+    const [activeTab, setActiveTab] = useState<'schema' | 'seed' | 'policies'>('policies');
     const [copySuccess, setCopySuccess] = useState('');
 
     const handleCopy = (textToCopy: string) => {
@@ -347,11 +390,20 @@ export const SchemaDisplay: React.FC = () => {
         });
     };
     
-    const contentToDisplay = activeTab === 'schema' ? sqlSchema : sqlSeedData;
+    const contentToDisplay = 
+        activeTab === 'schema' ? sqlSchema : 
+        activeTab === 'seed' ? sqlSeedData : 
+        sqlPolicies;
 
     return (
         <div className="text-brand-text-light font-mono text-xs max-h-[70vh] flex flex-col">
             <div className="flex-shrink-0 flex border-b border-stone-700 mb-2">
+                <button
+                    onClick={() => setActiveTab('policies')}
+                    className={`flex-1 p-2 text-sm text-center font-bold font-arabic transition-colors ${activeTab === 'policies' ? 'bg-brand-surface-dark text-amber-500' : 'text-brand-text-medium hover:bg-stone-800'}`}
+                >
+                    Policies SQL (هام)
+                </button>
                 <button
                     onClick={() => setActiveTab('schema')}
                     className={`flex-1 p-2 text-sm text-center font-bold font-arabic transition-colors ${activeTab === 'schema' ? 'bg-brand-surface-dark text-amber-500' : 'text-brand-text-medium hover:bg-stone-800'}`}

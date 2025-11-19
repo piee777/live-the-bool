@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { User } from '../types';
-import { supabase } from '../services/supabaseService';
+import { createUserProfile, getUserProfileByName, updateUserProfile } from '../services/supabaseService';
 
 interface LoginScreenProps {
     onLoginSuccess: (user: User) => void;
@@ -15,10 +15,12 @@ const fileToBase64 = (file: File): Promise<string> =>
     });
 
 const hashPassword = async (password: string): Promise<string> => {
-    const msgBuffer = new TextEncoder().encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
 };
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
@@ -54,56 +56,74 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         setError('');
 
         try {
-            const hashedPassword = await hashPassword(password);
-
-            // 1. Check if user exists
-            const { data: existingUser, error: fetchError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('name', trimmedName)
-                .single();
-
-            if (fetchError && fetchError.code !== 'PGRST116') {
-                 throw fetchError;
+            // Fetch IP and country from backend function
+            let userIp: string | undefined;
+            let userCountry: string | undefined;
+            try {
+                const userInfoResponse = await fetch('/.netlify/functions/get-user-info');
+                if (userInfoResponse.ok) {
+                    const userInfo = await userInfoResponse.json();
+                    userIp = userInfo.ip;
+                    userCountry = userInfo.country;
+                } else {
+                   console.warn("User info function failed:", userInfoResponse.statusText);
+                }
+            } catch (error) {
+                console.warn("Could not fetch user info:", error);
             }
 
-            if (existingUser) {
-                // Login
-                if (existingUser.password_hash === hashedPassword) {
-                    onLoginSuccess(existingUser);
-                } else {
-                    setError('كلمة المرور غير صحيحة.');
-                }
-            } else {
-                // Signup
-                if (!avatarFile) {
-                    setError('الصورة الشخصية مطلوبة لإنشاء حساب جديد.');
+            const hashedPassword = await hashPassword(password);
+            const existingUser = await getUserProfileByName(trimmedName);
+            
+            let avatar_url: string | undefined = undefined;
+            if (avatarFile) {
+                avatar_url = await fileToBase64(avatarFile);
+            }
+
+            if (existingUser) { // Login Flow
+                if (existingUser.password_hash !== hashedPassword) {
+                    setError("كلمة المرور غير صحيحة.");
                     setIsLoading(false);
                     return;
                 }
                 
-                const avatar_url = await fileToBase64(avatarFile);
-                
-                const { data: newUser, error: createError } = await supabase
-                    .from('profiles')
-                    .insert({
-                        name: trimmedName,
-                        password_hash: hashedPassword,
-                        avatar_url
-                    })
-                    .select('*')
-                    .single();
-                
-                if (createError) throw createError;
-                
+                // Successful login, check for updates
+                const updates: { avatar_url?: string; last_ip?: string; country?: string; } = {};
+                if (avatar_url && avatar_url !== existingUser.avatar_url) {
+                    updates.avatar_url = avatar_url;
+                }
+                if (userIp && userIp !== existingUser.last_ip) {
+                    updates.last_ip = userIp;
+                }
+                if (userCountry && userCountry !== existingUser.country) {
+                    updates.country = userCountry;
+                }
+
+                if (Object.keys(updates).length > 0) {
+                    const updatedUser = await updateUserProfile(existingUser.id, updates);
+                    onLoginSuccess(updatedUser || existingUser);
+                } else {
+                    onLoginSuccess(existingUser);
+                }
+
+            } else { // Signup Flow
+                if (!avatarFile) {
+                    setError("صورة الملف الشخصي مطلوبة لإنشاء حساب جديد.");
+                    setIsLoading(false);
+                    return;
+                }
+                const newUser = await createUserProfile(trimmedName, hashedPassword, avatar_url, userIp, userCountry);
                 if (newUser) {
                     onLoginSuccess(newUser);
+                } else {
+                    setError("هذا الاسم مستخدم بالفعل أو حدث خطأ ما. حاول مرة أخرى.");
+                    setIsLoading(false);
                 }
             }
-        } catch (error: any) {
+
+        } catch (error) {
             console.error("Error during login/signup:", error);
-            setError(error.message || "حدث خطأ غير متوقع.");
-        } finally {
+            setError("حدث خطأ غير متوقع.");
             setIsLoading(false);
         }
     };
@@ -130,7 +150,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                         {avatarPreview ? (
                             <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover rounded-full"/>
                         ) : (
-                            <svg xmlns="http://www.w.org/2000/svg" className="w-24 h-24 text-slate-700 group-hover:text-slate-500 transition-colors" viewBox="0 0 24 24" fill="currentColor">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-24 h-24 text-slate-700 group-hover:text-slate-500 transition-colors" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                             </svg>
                         )}

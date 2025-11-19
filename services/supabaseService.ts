@@ -2,16 +2,19 @@
 import { createClient } from '@supabase/supabase-js';
 import { User, Book, StoryState, Message, DiscoveryPost, Reply, Discovery } from '../types';
 
-// Storify Database Schema & Setup info remains the same...
-
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+// Use process.env strictly as defined in vite.config.ts for consistency.
+// We default to empty strings if undefined to prevent crashes, but logs will warn if keys are missing.
+const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
 
 if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("Supabase URL or Anon Key is not set in client-side environment variables.");
+    console.warn("⚠️ Supabase Keys missing! App will load but DB calls will fail. Check .env or Netlify Settings.");
 }
 
-export const supabase = createClient(supabaseUrl!, supabaseAnonKey!);
+export const supabase = createClient(
+    supabaseUrl || "https://placeholder.supabase.co", 
+    supabaseAnonKey || "placeholder"
+);
 
 // --- Read Operations ---
 
@@ -88,6 +91,7 @@ export const getDiscoveryPosts = async (): Promise<DiscoveryPost[]> => {
 // --- Write Operations (Direct Client-Side) ---
 
 export const saveStoryState = async (userId: string, bookId: string, state: StoryState) => {
+    // Direct DB write
     await supabase.from('story_states').upsert({
         user_id: userId,
         book_id: bookId,
@@ -100,6 +104,7 @@ export const saveStoryState = async (userId: string, bookId: string, state: Stor
 };
 
 export const saveChatHistory = async (userId: string, characterId: string, messages: Message[]) => {
+    // Direct DB write
     await supabase.from('chat_histories').upsert({
         user_id: userId,
         character_id: characterId,
