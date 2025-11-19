@@ -20,7 +20,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["**/*.ts", "**/*.tsx", "env.d.ts"],
   "exclude": ["netlify", "node_modules", "vite.config.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
