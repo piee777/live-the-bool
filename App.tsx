@@ -1,529 +1,386 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Book, Character, Message, Role, User, StoryChoice, Discovery, StoryState, DiscoveryPost } from './types';
+import React, { useState, useEffect } from 'react';
+import { Book, Character, Message, Role, User, StoryChoice, StoryState, DiscoveryPost } from './types';
 import { LibraryScreen } from './components/BookDetails';
 import { ChatInterface } from './components/ChatInterface';
 import { getCharacterResponse, getBehavioralAnalysis } from './services/geminiService';
 import { BottomNavBar } from './components/BottomNavBar';
 import { StoryView } from './components/StoryView';
 import { TopHeader } from './components/TopHeader';
-import { ProfileView } from './components/ProfileView';
-import { FateRollModal } from './components/FateRollModal';
 import { BehaviorAnalysisView } from './components/BehaviorAnalysisView';
 import { ChatsListView } from './components/ChatsListView';
 import { DiscoverView } from './components/DiscoverView';
 import { LoginScreen } from './components/LoginScreen';
+import { ProfileView } from './components/ProfileView';
 import SplashScreen from './components/SplashScreen';
-import * as db from './services/supabaseService';
-import { SchemaDisplay } from './components/SchemaDisplay';
+import { 
+  getBooks, 
+  getStoryStates, 
+  getChatHistories, 
+  saveStoryState, 
+  saveChatHistory, 
+  getAllUsers,
+  getDiscoveryPosts,
+  addDiscoveryPost,
+  togglePostLike,
+  addPostReply,
+  addNovelSuggestion
+} from './services/supabaseService';
 
-
-const STORY_PROMPT_TEMPLATE = (bookTitle: string, bookAuthor: string, bookSummary: string) => `أنت سيد السرد لتطبيق قصص تفاعلي بالكامل يعتمد على النص. هدفك هو إعادة إحياء الروايات الكلاسيكية بتجربة تفاعلية وغامرة. أنت **ملتزم تمامًا** بالرواية الأصلية.
-
-**معلومات الرواية:**
-*   **العنوان:** ${bookTitle}
-*   **الكاتب:** ${bookAuthor}
-*   **الملخص:** ${bookSummary}
-
-**القواعد الأساسية (يجب الالتزام بها بدقة):**
-
-1.  **الولاء للمصدر (الأهم):**
-    *   يجب أن تكون **كل الأحداث والشخصيات والأسلوب** مستوحاة مباشرة من الرواية الأصلية.
-    *   **ممنوع تمامًا** اختراع شخصيات رئيسية أو أحداث كبرى لا وجود لها في الكتاب.
-    *   حافظ على الجو العام (mood) والأسلوب اللغوي (style) للكاتب الأصلي.
-
-2.  **نقطة البداية (قاعدة صارمة):**
-    *   ابدأ السرد **دائمًا** من المشهد الافتتاحي للرواية الحقيقية. لا تبتكر بدايات بديلة.
-
-3.  **هيكل التفاعل (إلزامي في كل خطوة):**
-    *   **السرد:** صف المشهد الحالي وما يحدث بوصف قصير ومؤثر (**٤–٦ جمل فقط**). يجب أن يكون السرد مبنيًا على الأحداث الفعلية للكتاب.
-    *   **الخيارات:** بعد السرد، قدّم **٣ خيارات فقط** واضحة وموجزة ومصنفة. يجب أن تكون الخيارات أفعالًا منطقية يمكن للشخصية القيام بها ضمن سياق الرواية.
-
-4.  **الاستجابة للاختيار:**
-    *   عندما يختار اللاعب خيارًا، ادمج الفعل مباشرةً في السرد التالي كحدث طبيعي.
-    *   **تجنب تمامًا** تكرار اختيار المستخدم بصيغة مثل "لقد اخترت...".
-    *   يجب أن تؤدي الاختيارات إلى تفرعات **معقولة ومنطقية** داخل عالم الرواية، وليس إلى قصص مختلفة تمامًا.
-
-5.  **التدفق المستمر:**
-    *   القصة **لا تتوقف تلقائيًا أبدًا**. استمر في توليد مواقف وتفرعات جديدة مع الحفاظ على روح الرواية.
-
-**التنسيق الفني (إلزامي):**
-
-*   يجب أن يكون ردك بأكمله كتلة واحدة من النص العادي باستخدام العلامات الخاصة أدناه. **لا تستخدم JSON أبدًا.**
-*   \`[NARRATION]\`: ابدأ ردك بهذا. كل النصوص الوصفية وأحداث القصة توضع هنا.
-*   \`[CHOICE]\`: بعد السرد، أضف هذه العلامة، متبوعة بكل خيار في سطر جديد.
-    *   **التنسيق الإلزامي:** \`أيقونة :: نص الخيار :: category\`
-    *   **التصنيفات (category):** \`existential\` (وجودي)، \`pragmatic\` (عملي)، \`absurdist\` (عبثي).
-    *   **مثال:** \`🧠 :: التأمل في معنى الحياة :: existential\`
-*   **نظام القدر (Fate System):**
-    *   في اللحظات الحاسمة المأخوذة من الرواية، استخدم علامة القدر بدلاً من الخيارات.
-    *   **التنسيق:** \`[FATE_ROLL:وصف للتحدي]\`
-*   **استخدم العلامات الأخرى** مثل \`[PROGRESS]\`, \`[IMPACT]\`, \`[INVENTORY_ADD]\` لإثراء التجربة.
-`;
-
-const CHAT_PROMPT_TEMPLATE = (characterPersona: string, otherCharacters: string) => `أنت جزء من تطبيق كتب تفاعلي. مهمتك هي أن تتحدث كشخصية محددة من رواية.
-
-**قواعد وضع المحادثة:**
-1. ردك **يجب أن يكون نصًا عاديًا فقط**. **لا تستخدم أي علامات** مثل [NARRATION] أو [CHOICE].
-2. تحدث بحرية كالشخصية المحددة لك، مع الالتزام التام بأسلوبها وشخصيتها وعالمها.
-3. لا تخرج أبدًا عن شخصيتك أو تذكر أنك ذكاء اصطناعي.
-4. **المقاطعات (Interruptions)**:
-    - قد يقاطع حديثك شخصية أخرى من نفس الرواية. يجب أن تكون المقاطعة منطقية (شخص سمع الحديث، دخل الغرفة، إلخ).
-    - قائمة الشخصيات المتاحة للمقاطعة هي: ${otherCharacters || 'لا يوجد شخصيات أخرى حاليًا'}.
-    - **التنسيق**: استخدم \`[INTERRUPTION:اسم الشخصية:نص المقاطعة هنا[/INTERRUPTION]]\`. استخدم هذا باعتدال لإضافة عنصر المفاجأة.
-
-------------------------------------------------
-📌 هويتك المحددة هي:
-------------------------------------------------
-${characterPersona}
-`;
-
-const Toast: React.FC<{ message: string; onDismiss: () => void }> = ({ message, onDismiss }) => {
-    useEffect(() => {
-      const timer = setTimeout(onDismiss, 4000);
-      return () => clearTimeout(timer);
-    }, [onDismiss]);
-  
-    return (
-      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gradient-crimson-amber text-white py-3 px-6 rounded-full shadow-2xl animate-fade-in-up">
-        <p className="font-bold font-arabic text-center">🏆 إنجاز جديد: {message}</p>
-      </div>
-    );
-};
-
-const Notification: React.FC<{ message: string; onDismiss: () => void }> = ({ message, onDismiss }) => {
-    useEffect(() => {
-      const timer = setTimeout(onDismiss, 3500);
-      return () => clearTimeout(timer);
-    }, [onDismiss]);
-  
-    return (
-      <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-brand-surface-dark/90 backdrop-blur-sm border border-white/10 text-white py-2 px-5 rounded-full shadow-2xl animate-fade-in-up">
-        <p className="font-medium font-arabic text-center text-amber-400">{message}</p>
-      </div>
-    );
-};
-
-const Modal: React.FC<{ title: string; children: React.ReactNode; onClose: () => void }> = ({ title, children, onClose }) => (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-      <div className="bg-brand-surface-dark/90 w-full max-w-lg rounded-2xl shadow-2xl border border-white/10 p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-xl font-bold font-arabic text-center text-amber-500 mb-4">{title}</h3>
-        <div className="text-brand-text-light font-arabic leading-relaxed max-h-[60vh] overflow-y-auto">{children}</div>
-        <button onClick={onClose} className="mt-6 w-full p-3 bg-brand-crimson hover:opacity-90 rounded-lg text-white font-bold transition-colors font-arabic">إغلاق</button>
-      </div>
-    </div>
-);
-
-const AppLoader: React.FC = () => (
-    <div className="w-full h-full flex flex-col items-center justify-center text-center bg-brand-bg-dark">
-        <div className="w-16 h-16 border-4 border-t-transparent border-amber-500 rounded-full animate-spin"></div>
-    </div>
-);
-
-type View = 'library' | 'chat' | 'story' | 'profile' | 'behaviorAnalysis' | 'chatsList' | 'discover';
-
-export default function App() {
-  const [isSplashScreen, setIsSplashScreen] = useState(true);
+export const App: React.FC = () => {
+  const [showSplash, setShowSplash] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isDataLoading, setIsDataLoading] = useState(true);
-
-  const [allBooks, setAllBooks] = useState<Book[]>([]);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [currentView, setCurrentView] = useState<'library' | 'chat' | 'story' | 'profile' | 'behaviorAnalysis' | 'chatsList' | 'discover'>('library');
+  
+  // Data State
+  const [books, setBooks] = useState<Book[]>([]);
   const [storyStates, setStoryStates] = useState<Record<string, StoryState>>({});
   const [chatHistories, setChatHistories] = useState<Record<string, Message[]>>({});
-  
-  // Discover State
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [discoveryPosts, setDiscoveryPosts] = useState<DiscoveryPost[]>([]);
 
-
-  const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
-  const [globalProgress, setGlobalProgress] = useState<number>(0);
-  
+  // Selections
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [storyProgress, setStoryProgress] = useState(0);
-  const [lastUnlockedAchievement, setLastUnlockedAchievement] = useState<string | null>(null);
-  const [modalTitle, setModalTitle] = useState<string>('');
-  const [modalContent, setModalContent] = useState<React.ReactNode | null>(null);
-  const [inventory, setInventory] = useState<string[]>([]);
-  const [notification, setNotification] = useState<string | null>(null);
-  const [fateRollChallenge, setFateRollChallenge] = useState<string | null>(null);
-  const [discoveries, setDiscoveries] = useState<Discovery[]>([]);
-  const [behaviorAnalysisText, setBehaviorAnalysisText] = useState<string | null>(null);
-  const [isAnalysisLoading, setIsAnalysisLoading] = useState<boolean>(false);
-  const [view, setView] = useState<View>('library');
+  const [analysisText, setAnalysisText] = useState<string | null>(null);
 
-  const isInitialDataLoaded = useRef(false);
+  // UI State
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsSplashScreen(false);
-    }, 3000); 
+    const timer = setTimeout(() => setShowSplash(false), 3500);
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (isSplashScreen) return;
-    const savedUserJson = localStorage.getItem('storify_user');
-
-    const handleInvalidLocalUser = () => {
-      localStorage.removeItem('storify_user');
-      setCurrentUser(null);
-      setIsDataLoading(false);
-    };
-
-    if (savedUserJson) {
-      const validateAndSetUser = async () => {
-        try {
-          const savedUser: User = JSON.parse(savedUserJson);
-          if (!savedUser || !savedUser.id) {
-            throw new Error('Invalid user data in localStorage.');
-          }
-
-          const userFromDb = await db.getUserProfileById(savedUser.id);
-          if (userFromDb) {
-            setCurrentUser(userFromDb);
-          } else {
-            console.warn("User from localStorage not found in DB. Forcing re-login.");
-            handleInvalidLocalUser();
-          }
-        } catch (e) {
-          console.error("Failed to process user from localStorage:", e);
-          handleInvalidLocalUser();
-        }
-      };
-      validateAndSetUser();
-    } else {
-      setIsDataLoading(false);
-    }
-  }, [isSplashScreen]);
-
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const loadAppData = async () => {
-        setIsDataLoading(true);
-        const [
-            booksData, 
-            storyStatesData, 
-            chatHistoriesData,
-            allUsersData,
-        ] = await Promise.all([
-            db.getBooks(),
-            db.getStoryStates(currentUser.id),
-            db.getChatHistories(currentUser.id),
-            db.getAllUsers(),
-        ]);
-
-        setAllBooks(booksData);
-        setStoryStates(storyStatesData);
-        setChatHistories(chatHistoriesData);
-        setAllUsers(allUsersData);
-        
-        setIsDataLoading(false);
-    };
-
-    loadAppData();
-
-  }, [currentUser]);
-  
-  useEffect(() => {
-    if (view === 'discover') {
-      const fetchPosts = async () => {
-        setIsDataLoading(true);
-        const posts = await db.getDiscoveryPosts();
-        setDiscoveryPosts(posts);
-        setIsDataLoading(false);
-      };
-      fetchPosts();
-    }
-  }, [view]);
-
-
-  useEffect(() => {
-      if (!isDataLoading) {
-          isInitialDataLoaded.current = true;
-      }
-  }, [isDataLoading]);
-
-  useEffect(() => {
-    const startedStories = Object.values(storyStates);
-    if (startedStories.length === 0 || allBooks.length === 0) {
-      setGlobalProgress(0);
-      return;
-    }
-    let totalProgress = 0;
-    for (const state of startedStories) {
-      const progress = Number((state as StoryState).storyProgress || 0);
-      if (!isNaN(progress)) {
-        totalProgress += progress;
-      }
-    }
-    const averageProgress = totalProgress / allBooks.length;
-    setGlobalProgress(averageProgress);
-  }, [storyStates, allBooks]);
-  
-
-  const handleLoginSuccess = (user: User) => {
-      setCurrentUser(user);
-      localStorage.setItem('storify_user', JSON.stringify(user));
+  const refreshData = async (userId: string) => {
+    const [booksData, storyStatesData, chatHistoriesData, usersData, postsData] = await Promise.all([
+        getBooks(),
+        getStoryStates(userId),
+        getChatHistories(userId),
+        getAllUsers(),
+        getDiscoveryPosts()
+    ]);
+    
+    setBooks(booksData);
+    setStoryStates(storyStatesData);
+    setChatHistories(chatHistoriesData);
+    setAllUsers(usersData);
+    setDiscoveryPosts(postsData);
   };
-  
-  const handleBookSelect = (book: Book) => setSelectedBook(book);
-  
-  const handleBackToLibraryGrid = () => {
+
+  const handleLoginSuccess = async (user: User) => {
+    setCurrentUser(user);
+    await refreshData(user.id);
+  };
+
+  // --- Navigation Handlers ---
+  const handleBookSelect = (book: Book) => {
+    setSelectedBook(book);
+  };
+
+  const handleBackToLibrary = () => {
     setSelectedBook(null);
-    setSelectedCharacter(null);
-    setMessages([]);
-    setStoryProgress(0);
-    setInventory([]);
-    setDiscoveries([]);
-    setBehaviorAnalysisText(null);
+    setCurrentView('library');
   };
 
-  const handleCharacterSelect = (character: Character, book: Book) => {
-    setSelectedCharacter(character);
-    setSelectedBook(book);
-    const history = chatHistories[character.id];
-    setMessages(history && history.length > 0 ? history : [{ role: Role.CHARACTER, content: `مرحباً بك، أنا ${character.name}. بماذا تفكر؟` }]);
-    setView('chat');
-  };
-  
   const handleStartStory = (book: Book) => {
-    const savedState = storyStates[book.id];
     setSelectedBook(book);
-    const storyCharacter = book.characters[0];
-    setSelectedCharacter(storyCharacter);
-
-    if (savedState && savedState.messages.length > 0) {
-        setMessages(savedState.messages);
-        setStoryProgress(savedState.storyProgress);
-        setInventory(savedState.inventory);
-        setDiscoveries(savedState.discoveries || []);
-    } else {
-        setMessages([]);
-        setStoryProgress(0);
-        setInventory([]);
-        setDiscoveries([]);
-        handleSendMessage("ابدأ القصة.", { isStoryMode: true, bookForStory: book, characterOverride: storyCharacter });
+    
+    // Initialize story state if it doesn't exist
+    if (!storyStates[book.id]) {
+        const initialState: StoryState = {
+            messages: [],
+            storyProgress: 0,
+            inventory: [],
+            discoveries: []
+        };
+        setStoryStates(prev => ({ ...prev, [book.id]: initialState }));
+        
+        // Trigger initial narration if empty
+        handleStoryInteraction(book, initialState, []);
     }
-    setView('story');
+    
+    setCurrentView('story');
   };
 
-  const handleSetView = async (newView: View) => {
-    if (!currentUser) return;
+  const handleCharacterSelect = (character: Character) => {
+    setSelectedCharacter(character);
     
-    // --- Save state before changing view ---
-    if (view === 'story' && newView !== 'story' && selectedBook) {
-        if (messages.length > 0) {
-            const currentState: StoryState = { messages, storyProgress, inventory, discoveries };
-            setStoryStates(prev => ({...prev, [selectedBook.id]: currentState}));
-            db.saveStoryState(currentUser.id, selectedBook.id, currentState);
-        }
-    }
-    if (view === 'chat' && newView !== 'chat' && selectedCharacter) {
-        if (messages.length > 0) {
-            setChatHistories(prev => ({...prev, [selectedCharacter.id]: messages}));
-            db.saveChatHistory(currentUser.id, selectedCharacter.id, messages);
-        }
-    }
-    
-    // --- Reset/Prepare state for new view ---
-    if (newView === 'library') {
-      setSelectedBook(null);
-      setSelectedCharacter(null);
-      setMessages([]);
-      setStoryProgress(0);
-      setInventory([]);
-      setDiscoveries([]);
-      setBehaviorAnalysisText(null);
-    }
-    
-     if (newView === 'behaviorAnalysis' && selectedBook && selectedCharacter) {
-        setIsAnalysisLoading(true);
-        setBehaviorAnalysisText(null);
-        setView('behaviorAnalysis');
-        const analysis = await getBehavioralAnalysis(discoveries, selectedCharacter.persona);
-        setBehaviorAnalysisText(analysis);
-        setIsAnalysisLoading(false);
-    } else {
-        setView(newView);
-    }
-  }
-  
-  const handleBackToChatsList = () => {
-    if (!currentUser || !selectedCharacter) return;
-    
-    // Immediately save the latest chat history to DB before navigating away.
-    db.saveChatHistory(currentUser.id, selectedCharacter.id, messages);
-    
-    // Also update local state for faster UI response.
-    setChatHistories(prev => ({ ...prev, [selectedCharacter.id]: messages }));
-    
-    setSelectedCharacter(null);
-    setView('chatsList');
-  }
+    // Find the book this character belongs to for context if needed, 
+    // though chat history is stored by character ID.
+    const book = books.find(b => b.id === character.book_id);
+    if (book) setSelectedBook(book);
 
-  const handleFateRollResult = (result: 'نجاح!' | 'فشل!') => {
-    setFateRollChallenge(null);
-    const resultMessage: Message = { role: Role.SYSTEM, content: `نتيجة القدر: ${result}` };
-    setMessages(prev => [...prev, resultMessage]);
-    handleSendMessage(result, { isStoryMode: true });
-  };
-  
-  const handleSuggestNovel = async (suggestionText: string) => {
-    if (!currentUser) return;
-    const success = await db.addNovelSuggestion({ title: suggestionText, author: '', user_id: currentUser.id });
-    if (success) {
-      setNotification('🌟 شكرًا لمساهمتك! اقتراحك سيجعل التطبيق أمتع.');
-    } else {
-      setNotification('حدث خطأ أثناء إرسال الاقتراح.');
-    }
+    setCurrentView('chat');
   };
 
-  const handleAddPost = async (postData: Omit<DiscoveryPost, 'id' | 'author' | 'created_at' | 'likes' | 'replies'>) => {
+  // --- Story Logic ---
+  const handleStoryInteraction = async (book: Book, currentState: StoryState, newMessages: Message[]) => {
     if (!currentUser) return;
-    const newPost = await db.addDiscoveryPost({ ...postData, author_id: currentUser.id });
+    
+    setIsLoading(true);
+    
+    // Construct history for AI
+    // If it's a fresh start, we might want a system prompt initiator
+    const history = [...currentState.messages, ...newMessages];
+    
+    const systemInstruction = `
+    أنت الراوي في رواية تفاعلية مبنية على "${book.title}" للكاتب "${book.author}".
+    ملخص الرواية: ${book.summary}
+    
+    دورك هو:
+    1. سرد الأحداث بأسلوب أدبي بليغ ومشوق يناسب أجواء الرواية الأصلية.
+    2. جعل المستخدم هو البطل (خاطبه بـ "أنت").
+    3. تقديم خيارات للمستخدم تؤثر على مسار القصة (استخدم وسم [CHOICE]).
+    4. تتبع المخزون والاكتشافات (استخدم وسوم [INVENTORY_ADD], [INVENTORY_REMOVE], [DISCOVERY]).
+    5. إدارة تقدم القصة من 0 إلى 100 (استخدم وسم [PROGRESS:n]).
+    
+    تنسيق الاستجابة المطلوب:
+    - النص السردي العادي.
+    - [CHOICE]
+    أيقونة :: نص الخيار :: نوع (pragmatic/existential/absurdist)
+    [CHOICE]
+    
+    ملاحظة: إذا كانت بداية القصة، ابدأ بمقدمة قوية تضع المستخدم في قلب الحدث.
+    `;
+
+    // Add initial prompt if history is empty
+    let messagesToSend = history;
+    if (history.length === 0) {
+        messagesToSend = [{ role: Role.USER, content: "ابدأ القصة." }];
+    }
+
+    const response = await getCharacterResponse(systemInstruction, messagesToSend);
+    
+    const updatedMessages = [...history, response];
+    
+    // Update State
+    const newState: StoryState = {
+        ...currentState,
+        messages: updatedMessages,
+        storyProgress: response.progressIncrement 
+            ? Math.min(100, currentState.storyProgress + response.progressIncrement)
+            : currentState.storyProgress,
+        inventory: updateInventory(currentState.inventory, response.inventoryAdd, response.inventoryRemove),
+        // Discoveries logic would go here parsing the response
+    };
+
+    setStoryStates(prev => ({ ...prev, [book.id]: newState }));
+    await saveStoryState(currentUser.id, book.id, newState);
+    setIsLoading(false);
+  };
+
+  const updateInventory = (current: string[], add?: string, remove?: string) => {
+    let inv = [...current];
+    if (add && !inv.includes(add)) inv.push(add);
+    if (remove) inv = inv.filter(i => i !== remove);
+    return inv;
+  };
+
+  const handleStoryChoice = (choice: StoryChoice) => {
+    if (!selectedBook) return;
+    const state = storyStates[selectedBook.id];
+    const userMsg: Message = { role: Role.USER, content: choice.text };
+    
+    // Add discovery if choice has category
+    let newDiscoveries = state.discoveries;
+    if (choice.category) {
+        // Simple logic: assume choice text is the discovery for now
+        newDiscoveries = [...state.discoveries, { 
+            choiceText: choice.text, 
+            category: choice.category, 
+            outcome: 'unknown' // AI could return outcome later
+        }];
+    }
+
+    const nextState = { ...state, discoveries: newDiscoveries };
+    handleStoryInteraction(selectedBook, nextState, [userMsg]);
+  };
+
+  const handleSaveQuote = (quote: string) => {
+     // Placeholder: In a real app, save to a quotes table
+     console.log("Saved quote:", quote);
+     alert("تم حفظ الاقتباس في مفكرتك!");
+  };
+
+  // --- Chat Logic ---
+  const handleSendMessage = async (text: string) => {
+    if (!selectedCharacter || !currentUser) return;
+    
+    setIsLoading(true);
+    const history = chatHistories[selectedCharacter.id] || [];
+    const userMsg: Message = { role: Role.USER, content: text };
+    const newHistory = [...history, userMsg];
+    
+    // Optimistic update
+    setChatHistories(prev => ({ ...prev, [selectedCharacter.id]: newHistory }));
+
+    const systemInstruction = `
+    أنت تقمص شخصية "${selectedCharacter.name}" من رواية.
+    صفاتك: ${selectedCharacter.description}
+    شخصيتك الداخلية: ${selectedCharacter.persona}
+    
+    تحدث مع المستخدم بأسلوبك الخاص. لا تخرج عن الشخصية أبدًا.
+    `;
+
+    const response = await getCharacterResponse(systemInstruction, newHistory);
+    
+    const finalHistory = [...newHistory, response];
+    setChatHistories(prev => ({ ...prev, [selectedCharacter.id]: finalHistory }));
+    await saveChatHistory(currentUser.id, selectedCharacter.id, finalHistory);
+    setIsLoading(false);
+  };
+
+  // --- Analysis Logic ---
+  const handleBehaviorAnalysis = async () => {
+    if (!selectedBook) return;
+    setIsLoading(true);
+    setCurrentView('behaviorAnalysis');
+    
+    const state = storyStates[selectedBook.id];
+    // Find main character of the book for perspective
+    const mainChar = selectedBook.characters[0] || { name: 'الراوي', persona: 'مراقب محايد' };
+    
+    const analysis = await getBehavioralAnalysis(state?.discoveries || [], mainChar.persona);
+    setAnalysisText(analysis);
+    setIsLoading(false);
+  };
+
+  // --- Discover Logic ---
+  const handleAddPost = async (postData: any) => {
+    if (!currentUser) return;
+    const newPost = await addDiscoveryPost({ ...postData, author_id: currentUser.id });
     if (newPost) {
         setDiscoveryPosts(prev => [newPost, ...prev]);
     }
   };
 
   const handleLikePost = async (postId: string) => {
-      if (!currentUser) return;
-      const result = await db.togglePostLike(postId, currentUser.id);
-      if (result) {
-          setDiscoveryPosts(prev => prev.map(p => {
-              if (p.id !== postId) return p;
-              const newLikes = result.liked 
-                  ? [...p.likes, currentUser.id]
-                  : p.likes.filter(id => id !== currentUser.id);
-              return { ...p, likes: newLikes };
-          }));
-      }
-  };
-
-  const handleAddReply = async (postId: string, replyText: string) => {
-      if (!currentUser) return;
-      const newReply = await db.addPostReply({ post_id: postId, author_id: currentUser.id, content: replyText });
-      if (newReply) {
-          setDiscoveryPosts(prev => prev.map(p => {
-              if (p.id !== postId) return p;
-              return { ...p, replies: [...p.replies, newReply] };
-          }));
-      }
-  };
-
-  const handleSendMessage = async (
-    choice: StoryChoice | string,
-    options: { characterOverride?: Character; isStoryMode?: boolean; bookForStory?: Book } = {}
-  ) => {
-    const { characterOverride, isStoryMode = false, bookForStory } = options;
-    const characterForAPI = characterOverride || selectedCharacter;
-    if (!characterForAPI) return;
-
-    const text = typeof choice === 'string' ? choice : choice.text;
-    const newUserMessage: Message = { role: Role.USER, content: text, timestamp: Date.now() };
-
-    const messagesForApi = [...messages, newUserMessage];
-    
-    // In chat mode, display the user's message immediately.
-    // In story mode, we wait for the narrator's response to create a seamless flow.
-    if (!isStoryMode) {
-      setMessages(messagesForApi);
+    if (!currentUser) return;
+    const result = await togglePostLike(postId, currentUser.id);
+    if (result) {
+        setDiscoveryPosts(prev => prev.map(p => {
+            if (p.id === postId) {
+                const likes = result.liked 
+                    ? [...p.likes, currentUser.id]
+                    : p.likes.filter(id => id !== currentUser.id);
+                return { ...p, likes };
+            }
+            return p;
+        }));
     }
-    
-    setIsLoading(true);
+  };
 
-    const currentBook = bookForStory || selectedBook;
-    const systemInstruction = isStoryMode && currentBook
-        ? STORY_PROMPT_TEMPLATE(currentBook.title, currentBook.author, currentBook.summary)
-        : CHAT_PROMPT_TEMPLATE(characterForAPI.persona, currentBook?.characters.filter(c => c.id !== characterForAPI.id).map(c => c.name).join('، ') || '');
-    
-    try {
-      const responseMessage = await getCharacterResponse(systemInstruction, messagesForApi);
-      responseMessage.timestamp = Date.now();
-      
-       if (isStoryMode && typeof choice !== 'string') {
-        const newDiscovery: Discovery = { choiceText: choice.text, category: choice.category, outcome: responseMessage.impact || 'مسار القصة يتغير...' };
-        setDiscoveries(prev => [...prev, newDiscovery]);
-      }
-
-      if (responseMessage.progressIncrement) setStoryProgress(prev => Math.min(prev + responseMessage.progressIncrement!, 100));
-      if (responseMessage.inventoryAdd) {
-        setInventory(prev => [...new Set([...prev, responseMessage.inventoryAdd!])]);
-        setNotification(`تمت إضافة: ${responseMessage.inventoryAdd}`);
-      }
-      if (responseMessage.inventoryRemove) {
-        setInventory(prev => prev.filter(item => item !== responseMessage.inventoryRemove));
-        setNotification(`تمت إزالة: ${responseMessage.inventoryRemove}`);
-      }
-      if (responseMessage.secretAchievement) {
-        setLastUnlockedAchievement(responseMessage.secretAchievement);
-        setUnlockedAchievements(prev => [...new Set([...prev, responseMessage.secretAchievement!])]);
-      }
-      if (responseMessage.flashback) {
-        setModalTitle('ذكرى خاطفة');
-        setModalContent(responseMessage.flashback);
-      }
-      if (responseMessage.fateRoll) {
-        // Save the user's action that triggered the fate roll to history before showing the modal.
-        setMessages(prev => [...prev, newUserMessage]);
-        setFateRollChallenge(responseMessage.fateRoll);
-        setIsLoading(false);
-        return;
-      }
-
-      if (isStoryMode) {
-        // In story mode, add both the user's choice and the AI's response at the same time.
-        // This keeps the history correct without displaying the user's choice in the UI.
-        setMessages(prev => [...prev, newUserMessage, responseMessage]);
-      } else {
-        // In chat mode, the user's message is already displayed. Just add the AI's response.
-        setMessages(prev => [...prev, responseMessage]);
-      }
-
-    } catch (e) {
-      console.error(e);
-      setMessages(prev => [...prev, { role: Role.SYSTEM, content: "حدث خطأ. حاول مرة أخرى." }]);
-    } finally {
-      setIsLoading(false);
+  const handleAddReply = async (postId: string, content: string) => {
+    if (!currentUser) return;
+    const reply = await addPostReply({ post_id: postId, author_id: currentUser.id, content });
+    if (reply) {
+        setDiscoveryPosts(prev => prev.map(p => {
+            if (p.id === postId) {
+                return { ...p, replies: [...p.replies, reply] };
+            }
+            return p;
+        }));
     }
   };
   
-  const handleSaveQuote = () => setNotification('تم حفظ الاقتباس بنجاح!');
-  
-  const handleShowSchema = () => {
-    setModalTitle('شيما قاعدة البيانات');
-    setModalContent(<SchemaDisplay />);
+  const handleSuggestNovel = async (text: string) => {
+    if (!currentUser) return;
+    await addNovelSuggestion({ title: 'Suggestion', author: text, user_id: currentUser.id });
+    alert("شكرًا لاقتراحك! سنقوم بمراجعته.");
   };
 
-  if (isSplashScreen) return <SplashScreen />;
-  if (!currentUser) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
-  if (isDataLoading && !isInitialDataLoaded.current) return <AppLoader />;
 
+  // --- Rendering ---
 
-  const renderCurrentView = () => {
-    switch (view) {
-      case 'chat':
-        return selectedCharacter ? (
-          <ChatInterface messages={messages} onSendMessage={(text) => handleSendMessage(text)} isLoading={isLoading} character={selectedCharacter} onBack={handleBackToChatsList} currentUser={currentUser} />
-        ) : (
-          <ChatsListView chatHistories={chatHistories} books={allBooks} onCharacterSelect={handleCharacterSelect} />
-        );
-      case 'story':
-        return selectedBook ? (
-            <StoryView message={messages[messages.length - 1] || { role: Role.NARRATOR, content: 'جاري بدء القصة...'}} isLoading={isLoading} onChoiceSelect={(choice) => handleSendMessage(choice, {isStoryMode: true})} onOpenInventory={() => { setModalTitle("الحقيبة"); setModalContent(inventory.length > 0 ? <ul className="list-disc pr-5 space-y-2">{inventory.map((item, i) => <li key={i}>{item}</li>)}</ul> : <p>حقيبتك فارغة.</p>); }} inventoryCount={inventory.length} onSaveQuote={handleSaveQuote} discoveries={discoveries} />
-        ) : <p>Book not selected</p>;
-      case 'profile':
-         return <ProfileView user={currentUser} allUsers={allUsers} stats={{ storiesStarted: Object.keys(storyStates).length, achievementsUnlocked: unlockedAchievements.length }} unlockedAchievements={unlockedAchievements} onShowSchema={handleShowSchema} />;
-       case 'behaviorAnalysis':
-        return selectedCharacter ? <BehaviorAnalysisView discoveries={discoveries} character={selectedCharacter} analysisText={behaviorAnalysisText} isLoading={isAnalysisLoading} /> : <p>Character not selected</p>;
-       case 'chatsList':
-        return <ChatsListView chatHistories={chatHistories} books={allBooks} onCharacterSelect={handleCharacterSelect} />;
-      case 'discover':
-        return (
+  if (showSplash) {
+    return <SplashScreen />;
+  }
+
+  if (!currentUser) {
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  const globalProgress = Object.values(storyStates).reduce((acc, curr) => acc + (curr.storyProgress || 0), 0) / Math.max(1, books.length);
+  const unlockedAchievements = currentUser.unlocked_achievements || [];
+
+  return (
+    <div className="flex flex-col h-screen w-full bg-brand-bg-dark text-brand-text-light font-arabic overflow-hidden">
+      {currentView !== 'story' && currentView !== 'chat' && (
+         <TopHeader user={currentUser} globalProgress={Math.min(100, Math.round(globalProgress))} />
+      )}
+
+      <main className="flex-1 overflow-hidden relative">
+        {currentView === 'library' && (
+            <LibraryScreen 
+                books={books}
+                selectedBook={selectedBook}
+                storyStates={storyStates}
+                onBookSelect={handleBookSelect}
+                onCharacterSelect={handleCharacterSelect}
+                onStartStory={handleStartStory}
+                onBackToGrid={handleBackToLibrary}
+                onSuggestNovel={handleSuggestNovel}
+                currentUser={currentUser}
+            />
+        )}
+
+        {currentView === 'story' && selectedBook && (
+             <StoryView 
+                message={storyStates[selectedBook.id]?.messages.slice(-1)[0] || { role: Role.NARRATOR, content: '...' }}
+                isLoading={isLoading}
+                onChoiceSelect={handleStoryChoice}
+                onOpenInventory={() => alert("المخزون: " + (storyStates[selectedBook.id]?.inventory.join(', ') || "فارغ"))}
+                inventoryCount={storyStates[selectedBook.id]?.inventory.length || 0}
+                onSaveQuote={handleSaveQuote}
+                discoveries={storyStates[selectedBook.id]?.discoveries || []}
+             />
+        )}
+
+        {currentView === 'chat' && selectedCharacter && (
+            <ChatInterface 
+                messages={chatHistories[selectedCharacter.id] || []}
+                onSendMessage={handleSendMessage}
+                isLoading={isLoading}
+                character={selectedCharacter}
+                onBack={() => setCurrentView('chatsList')}
+                currentUser={currentUser}
+            />
+        )}
+
+        {currentView === 'profile' && (
+            <ProfileView 
+                user={currentUser}
+                allUsers={allUsers}
+                stats={{
+                    storiesStarted: Object.keys(storyStates).length,
+                    achievementsUnlocked: unlockedAchievements.length
+                }}
+                unlockedAchievements={unlockedAchievements}
+            />
+        )}
+        
+        {currentView === 'behaviorAnalysis' && selectedBook && (
+            <BehaviorAnalysisView 
+                discoveries={storyStates[selectedBook.id]?.discoveries || []}
+                character={selectedBook.characters[0]}
+                analysisText={analysisText}
+                isLoading={isLoading}
+            />
+        )}
+
+        {currentView === 'chatsList' && (
+            <ChatsListView 
+                chatHistories={chatHistories}
+                books={books}
+                onCharacterSelect={(char, book) => {
+                    setSelectedCharacter(char);
+                    setSelectedBook(book);
+                    setCurrentView('chat');
+                }}
+            />
+        )}
+
+        {currentView === 'discover' && (
             <DiscoverView 
                 posts={discoveryPosts}
                 currentUser={currentUser}
@@ -532,59 +389,14 @@ export default function App() {
                 onLikePost={handleLikePost}
                 onAddReply={handleAddReply}
             />
-        );
-      case 'library':
-      default:
-        return (
-          <LibraryScreen
-            books={allBooks}
-            selectedBook={selectedBook}
-            storyStates={storyStates}
-            onBookSelect={handleBookSelect}
-            onCharacterSelect={(char) => handleCharacterSelect(char, selectedBook!)}
-            onStartStory={handleStartStory}
-            onBackToGrid={handleBackToLibraryGrid}
-            onSuggestNovel={handleSuggestNovel}
-            currentUser={currentUser}
-          />
-        );
-    }
-  };
-
-  return (
-    <div className="w-full h-full flex flex-col bg-brand-bg-dark text-brand-text-light font-sans overflow-hidden">
-      {lastUnlockedAchievement && (
-        <Toast message={lastUnlockedAchievement} onDismiss={() => setLastUnlockedAchievement(null)} />
-      )}
-      {notification && (
-        <Notification message={notification} onDismiss={() => setNotification(null)} />
-      )}
-      {modalContent && (
-        <Modal title={modalTitle} onClose={() => setModalContent(null)}>
-          {modalContent}
-        </Modal>
-      )}
-      {fateRollChallenge && (
-        <FateRollModal challenge={fateRollChallenge} onResult={handleFateRollResult} />
-      )}
-
-      {/* Main Layout */}
-      <div className="flex-1 flex flex-col min-h-0">
-        {view !== 'story' && view !== 'chat' && view !== 'behaviorAnalysis' && (
-          <TopHeader 
-            user={currentUser} 
-            globalProgress={globalProgress} 
-          />
         )}
-        <main className="flex-1 overflow-y-auto">
-          {renderCurrentView()}
-        </main>
-        <BottomNavBar 
-            currentView={view} 
-            setView={handleSetView} 
-            isStoryMode={view === 'story' || view === 'behaviorAnalysis'} 
-        />
-      </div>
+      </main>
+
+      <BottomNavBar 
+        currentView={currentView} 
+        setView={setCurrentView} 
+        isStoryMode={!!selectedBook && storyStates[selectedBook.id]?.messages.length > 0} 
+      />
     </div>
   );
-}
+};

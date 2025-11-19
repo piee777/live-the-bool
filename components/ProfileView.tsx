@@ -23,7 +23,6 @@ interface ProfileViewProps {
     achievementsUnlocked: number;
   };
   unlockedAchievements: string[];
-  onShowSchema: () => void;
 }
 
 const getPersonalityData = (achievements: string[]) => {
@@ -132,7 +131,7 @@ const RadarChart: React.FC<{ data: { axis: string; value: number; color: string 
 };
 
 export const ProfileView: React.FC<ProfileViewProps> = (props) => {
-  const { user, unlockedAchievements, allUsers, onShowSchema } = props;
+  const { user, unlockedAchievements, allUsers } = props;
   const personalityData = getPersonalityData(unlockedAchievements);
   const thinkingProfileTitle = getThinkingProfileTitle(unlockedAchievements);
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
@@ -209,20 +208,12 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
             <h3 className="text-xl font-bold font-arabic mb-4 text-center">عن Storify</h3>
             <div className="bg-brand-surface-dark p-6 rounded-xl border border-white/10 space-y-4 text-center">
                 <p className="font-arabic text-brand-text-medium leading-relaxed">
-                    Storify ليس مجرد تطبيق قراءة، بل هو دعوة لتعيش الروايات التي تحبها. هنا، يمكنك التحدث مع شخصياتك المفضلة، اتخاذ قرارات تؤثر في مسار القصة، ورؤية كيف تعكس اختياراتك شخصيتك الأدبية.
+                    Storify ليس مجرد تطبيق قراءة، بل هو دعوة لتعيش الروايات التي تحبها. هنا، يمكنك التحدث مع شخصياته المفضلة، اتخاذ قرارات تؤثر في مسار القصة، ورؤية كيف تعكس اختياراتك شخصيتك الأدبية.
                 </p>
                 <p className="font-arabic text-brand-text-medium leading-relaxed">
                     <strong className="block text-amber-400 mb-1">كيف يعمل تحليل الشخصية؟</strong> 
                     المخطط الذي تراه ليس اختبارًا نفسيًا، بل هو مرآة إبداعية تعكس ميولك وقراراتك ضمن عوالم الروايات التي تتفاعل معها. كل إنجاز تحققه يساهم في تشكيل هذه الخريطة الفريدة لشخصيتك السردية.
                 </p>
-                <div className="pt-4">
-                    <button 
-                        onClick={onShowSchema} 
-                        className="font-arabic text-sm text-amber-500 hover:text-amber-400 transition-colors underline decoration-dotted underline-offset-4"
-                    >
-                        عرض شيما قاعدة البيانات (SQL)
-                    </button>
-                </div>
             </div>
         </div>
 
