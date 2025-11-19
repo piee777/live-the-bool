@@ -14,6 +14,7 @@ import { DiscoverView } from './components/DiscoverView';
 import { LoginScreen } from './components/LoginScreen';
 import SplashScreen from './components/SplashScreen';
 import * as db from './services/supabaseService';
+import { SchemaDisplay } from './components/SchemaDisplay';
 
 
 const STORY_PROMPT_TEMPLATE = (bookTitle: string, bookAuthor: string, bookSummary: string) => `أنت سيد السرد لتطبيق قصص تفاعلي بالكامل يعتمد على النص. هدفك هو إعادة إحياء الروايات الكلاسيكية بتجربة تفاعلية وغامرة. أنت **ملتزم تمامًا** بالرواية الأصلية.
@@ -493,6 +494,11 @@ export default function App() {
   
   const handleSaveQuote = () => setNotification('تم حفظ الاقتباس بنجاح!');
   
+  const handleShowSchema = () => {
+    setModalTitle('شيما قاعدة البيانات');
+    setModalContent(<SchemaDisplay />);
+  };
+
   if (isSplashScreen) return <SplashScreen />;
   if (!currentUser) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   if (isDataLoading && !isInitialDataLoaded.current) return <AppLoader />;
@@ -511,7 +517,7 @@ export default function App() {
             <StoryView message={messages[messages.length - 1] || { role: Role.NARRATOR, content: 'جاري بدء القصة...'}} isLoading={isLoading} onChoiceSelect={(choice) => handleSendMessage(choice, {isStoryMode: true})} onOpenInventory={() => { setModalTitle("الحقيبة"); setModalContent(inventory.length > 0 ? <ul className="list-disc pr-5 space-y-2">{inventory.map((item, i) => <li key={i}>{item}</li>)}</ul> : <p>حقيبتك فارغة.</p>); }} inventoryCount={inventory.length} onSaveQuote={handleSaveQuote} discoveries={discoveries} />
         ) : <p>Book not selected</p>;
       case 'profile':
-         return <ProfileView user={currentUser} allUsers={allUsers} stats={{ storiesStarted: Object.keys(storyStates).length, achievementsUnlocked: unlockedAchievements.length }} unlockedAchievements={unlockedAchievements} />;
+         return <ProfileView user={currentUser} allUsers={allUsers} stats={{ storiesStarted: Object.keys(storyStates).length, achievementsUnlocked: unlockedAchievements.length }} unlockedAchievements={unlockedAchievements} onShowSchema={handleShowSchema} />;
        case 'behaviorAnalysis':
         return selectedCharacter ? <BehaviorAnalysisView discoveries={discoveries} character={selectedCharacter} analysisText={behaviorAnalysisText} isLoading={isAnalysisLoading} /> : <p>Character not selected</p>;
        case 'chatsList':

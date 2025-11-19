@@ -23,6 +23,7 @@ interface ProfileViewProps {
     achievementsUnlocked: number;
   };
   unlockedAchievements: string[];
+  onShowSchema: () => void;
 }
 
 const getPersonalityData = (achievements: string[]) => {
@@ -131,7 +132,7 @@ const RadarChart: React.FC<{ data: { axis: string; value: number; color: string 
 };
 
 export const ProfileView: React.FC<ProfileViewProps> = (props) => {
-  const { user, unlockedAchievements, allUsers } = props;
+  const { user, unlockedAchievements, allUsers, onShowSchema } = props;
   const personalityData = getPersonalityData(unlockedAchievements);
   const thinkingProfileTitle = getThinkingProfileTitle(unlockedAchievements);
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
@@ -214,6 +215,14 @@ export const ProfileView: React.FC<ProfileViewProps> = (props) => {
                     <strong className="block text-amber-400 mb-1">كيف يعمل تحليل الشخصية؟</strong> 
                     المخطط الذي تراه ليس اختبارًا نفسيًا، بل هو مرآة إبداعية تعكس ميولك وقراراتك ضمن عوالم الروايات التي تتفاعل معها. كل إنجاز تحققه يساهم في تشكيل هذه الخريطة الفريدة لشخصيتك السردية.
                 </p>
+                <div className="pt-4">
+                    <button 
+                        onClick={onShowSchema} 
+                        className="font-arabic text-sm text-amber-500 hover:text-amber-400 transition-colors underline decoration-dotted underline-offset-4"
+                    >
+                        عرض شيما قاعدة البيانات (SQL)
+                    </button>
+                </div>
             </div>
         </div>
 
