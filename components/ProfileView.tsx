@@ -23,7 +23,6 @@ interface ProfileViewProps {
     achievementsUnlocked: number;
   };
   unlockedAchievements: string[];
-  onShowSchema: () => void;
 }
 
 const getPersonalityData = (achievements: string[]) => {
@@ -52,7 +51,7 @@ const getTitle = (personality: string) => {
     }
 };
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ user, allUsers, stats, unlockedAchievements, onShowSchema }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ user, allUsers, stats, unlockedAchievements }) => {
     const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
     const personality = getPersonalityData(unlockedAchievements);
     const title = getTitle(personality);
@@ -116,13 +115,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, allUsers, stats,
                     <h3 className="text-xl font-bold font-arabic mb-4 text-brand-text-light">الإنجازات</h3>
                     <AchievementsGrid unlockedAchievements={unlockedAchievements} />
                 </div>
-
-                 {/* Schema Button (Dev only or hidden feature) */}
-                 <div className="text-center pt-4">
-                     <button onClick={onShowSchema} className="text-xs text-stone-500 hover:text-stone-400 font-mono underline">
-                         View Database Schema
-                     </button>
-                 </div>
             </div>
 
             <UsersModal 
