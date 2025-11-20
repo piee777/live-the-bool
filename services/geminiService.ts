@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, GenerateContentResponse } from '@google/genai';
 import { Message, Role, StoryChoice, Discovery } from '../types';
 
@@ -21,9 +20,8 @@ function getAiClient(): GoogleGenAI | null {
     return null;
   }
 
-  // Ensure process and process.env exist before accessing
-  // This safety check helps in environments where the define plugin might fail
-  const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : '';
+  // As per instructions, process.env.API_KEY is assumed to be pre-configured.
+  const apiKey = process.env.API_KEY;
 
   if (!apiKey || apiKey.trim() === '' || apiKey === 'undefined') {
     if (!apiKeyMissingErrorLogged) {
